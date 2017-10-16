@@ -3876,6 +3876,7 @@
 !---------ejfv(j) should be in MeV ?? --> CrabAmp/ejfv(j) is in rad
 !---------CrabFreq input in MHz (ek)
 !---------sigmv should be in mm --> sigmv*1e-3/clight*ek*1e6 in rad
+
 +if crlibm
           pi=4d0*atan_rn(1d0)
 +ei
@@ -3889,6 +3890,8 @@
 
 +if .not.tilt
 +if crlibm
+        
+		print *, "changeHere"
         yv(xory,j)=yv(xory,j) - crabamp*                                &!hr03
      &sin_rn((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix))         !hr03
       dpsv(j)=dpsv(j) -                                                 &!hr03
@@ -3896,6 +3899,7 @@
      &cos_rn((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix)))*c1m3   !hr03
 +ei
 +if .not.crlibm
+		print *, "changeHere_notLib"
         yv(xory,j)=yv(xory,j) - crabamp*                                &!hr03
      &sin((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix))            !hr03
       dpsv(j)=dpsv(j) -                                                 &!hr03
@@ -3905,11 +3909,21 @@
 +ei
 +if tilt
 +if crlibm
+        
+		 
         yv(xory,j)=yv(xory,j) - crabamp*                                &!hr03
-     &sin_rn((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix))         !hr03
-      dpsv(j)=dpsv(j) -                                                 &!hr03
-     &((((((crabamp*crabfreq)*2d0)*pi)/clight)*xv(xory,j))*             &!hr03
-     &cos_rn((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix)))*c1m3   !hr03
+     &sin_rn((((sigmv(j)/(clight*(ejfv(j)/ejv(j))))*                    &!hr03
+     &crabfreq)*2d0)*pi + crabph(ix))                                   !hr03
+      
+!      dpsv(j)=dpsv(j) -                                                 &!hr03
+!     &((((((crabamp*crabfreq)*2d0)*pi)/clight)*xv(xory,j))*             &!hr03
+!     &cos_rn((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix)))*c1m3   !hr03
+      
+      ejv(j)=ejv(j) -                                                   &!hr03
+     &((((((ejfv(j)*crabamp*crabfreq)*2d0)*pi)/                         &!hr03
+     &(clight*(ejfv(j)/ejv(j))))*xv(xory,j))*                           &!hr03
+     &cos_rn((((sigmv(j)/(clight*(ejfv(j)/ejv(j))))*                    &!hr03
+     &crabfreq)*2d0)*pi + crabph(ix)))       							 !hr03
 +ei
 +if .not.crlibm
         yv(xory,j)=yv(xory,j) - crabamp*                                &!hr03
@@ -3919,9 +3933,15 @@
      &cos((((sigmv(j)/clight)*crabfreq)*2d0)*pi + crabph(ix)))*c1m3      !hr03
 +ei
 +ei
+       
       ejf0v(j)=ejfv(j)
-      ejfv(j)=dpsv(j)*e0f+e0f
-      ejv(j)=sqrt(ejfv(j)**2+pma**2)                                     !hr03
+      !ejfv(j)=dpsv(j)*e0f+e0f
+      ejfv(j)=sqrt(ejv(j)**2-pma**2)
+      print *, "old", dpsv(j)
+      dpsv(j)=(ejfv(j)-e0f)/e0f
+      print *, "new", dpsv(j)
+      !ejv(j)=sqrt(ejfv(j)**2+pma**2)                                     !hr03
+      !print *, "old", ejv(j)
       oidpsv(j)=one/(one+dpsv(j))
       dpsv1(j)=(dpsv(j)*c1e3)*oidpsv(j)
       yv(1,j)=(ejf0v(j)/ejfv(j))*yv(1,j)
@@ -20563,8 +20583,8 @@ C Should get me a NaN
 *FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
 *FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT*X(1)*
 *FOX  COS(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  EJF0=EJF1 ;
 *FOX  DPDA=DPDA1*C1M3 ;
+*FOX  EJF0=EJF1 ;
 *FOX  EJF1=E0F*(ONE+DPDA) ;
 *FOX  EJ1=SQRT(EJF1*EJF1+PMA*PMA) ;
 *FOX  Y(1)=EJF0/EJF1*Y(1) ;
@@ -20574,16 +20594,18 @@ C Should get me a NaN
 *FOX  CRABAMP=ED(IX)/(EJF1) ;
              crabfreq=ek(ix)*c1e3
              crabpht=crabph(ix)
+             print *, "RFmultipoleIshere"
 *FOX  Y(2)=Y(2) - CRABAMP*C1E3*
 *FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
 *FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT*X(2)*
 *FOX  COS(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  EJF0=EJF1 ;
+*FOX  EJF0=EJF1;
 *FOX  DPDA=DPDA1*C1M3 ;
 *FOX  EJF1=E0F*(ONE+DPDA) ;
-*FOX  EJ1=SQRT(EJF1*EJF1+PMA*PMA) ;
+*FOX  EJ1=C1E3*SQRT(EJF1*EJF1+PMA*PMA) ;
 *FOX  Y(1)=EJF0/EJF1*Y(1) ;
-*FOX  Y(2)=EJF0/EJF1*Y(2) ;
+*FOX  Y(2)=EJF0/EJF1*Y(2) ;sdfdsf
+! This_comment should be here
           endif
 ! JBG RF CC Multipoles
           if(kzz.eq.26) then
