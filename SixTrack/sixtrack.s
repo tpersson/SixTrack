@@ -621,6 +621,8 @@
 *FOX  Y(1)=Y(1)*C1E3 ;
 *FOX  Y(2)=Y(2)*C1E3 ;
 *FOX  SIGMDA=SIGMDA*C1E3 ;
+
+
 !-----------------------------------------------------------------------
 +cd commphin
       common/phasecom/ phase(3,npos+1)
@@ -1441,7 +1443,7 @@
 *FOX  D V RE INT FOUR ; D V RE INT ZERO ; D V RE INT HALF ;
 *FOX  D V RE INT CRABFREQ ; D V RE INT CRABPHT ;
 *FOX  D V RE INT CRABPHT2 ; D V RE INT CRABPHT3 ;
-*FOX  D V RE INT CRABPHT4 ;
+*FOX  D V RE INT CRABPHT4 ; D V RE INT RBETAA ;
 *FOX  D V RE INT CLIGHT ;
 *FOX  D V IN INT IDZ 2 ; D V IN INT KX ; D V IN INT IX ; D V IN INT JX ;
 *FOX  D V IN INT I ; D V IN INT IPCH ; D V IN INT K ; D V IN INT KKK ;
@@ -1639,7 +1641,7 @@
 *FOX  CIKVE=ZL ;
 +ei
 +cd alignu
-+if .not.tilt
++if .not.tilt-23
         xl=x(1,1)-xs
         zl=x(1,2)-zs
         crkve=xl
@@ -20583,30 +20585,7 @@ C Should get me a NaN
 *FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
 *FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT*X(1)*
 *FOX  COS(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  DPDA=DPDA1*C1M3 ;
-*FOX  EJF0=EJF1 ;
-*FOX  EJF1=E0F*(ONE+DPDA) ;
-*FOX  EJ1=SQRT(EJF1*EJF1+PMA*PMA) ;
-*FOX  Y(1)=EJF0/EJF1*Y(1) ;
-*FOX  Y(2)=EJF0/EJF1*Y(2) ;
-          endif
-          if(kzz.eq.-23) then
-*FOX  CRABAMP=ED(IX)/(EJF1) ;
-             crabfreq=ek(ix)*c1e3
-             crabpht=crabph(ix)
-             print *, "RFmultipoleIshere"
-*FOX  Y(2)=Y(2) - CRABAMP*C1E3*
-*FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT*X(2)*
-*FOX  COS(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  EJF0=EJF1;
-*FOX  DPDA=DPDA1*C1M3 ;
-*FOX  EJF1=E0F*(ONE+DPDA) ;
-*FOX  EJ1=C1E3*SQRT(EJF1*EJF1+PMA*PMA) ;
-*FOX  Y(1)=EJF0/EJF1*Y(1) ;
-*FOX  Y(2)=EJF0/EJF1*Y(2) ;sdfdsf
-! This_comment should be here
-          endif
+*FOX  DPDA
 ! JBG RF CC Multipoles
           if(kzz.eq.26) then
           xs=xsi(i)
@@ -21120,7 +21099,7 @@ C Should get me a NaN
      &oz,ozp,ozp1,phi,r0,r2b,r2bf,rb,rbf,rdd,rho2b,rkb,rkbf,rrad,       &
      &scikveb,scrkveb,sfac1,sfac2,sfac2s,sfac3,sfac4,sfac5,sigm1,       &
      &sigmdac,startco,sx,tas,tkb,tl,x2pi,xbb,xrb,xs,zbb,zfeld1,zfeld2,  &
-     &zrb,zs,  crabfreq, crabpht, crabpht2, crabpht3, crabpht4
+     &zrb,zs,  crabfreq, crabpht, crabpht2, crabpht3, crabpht4, rbetaa
       character*16 typ
 +ca parpro
 +ca parnum
@@ -21815,10 +21794,12 @@ C Should get me a NaN
 !       call dapri(EJF1,234)
 !       write(*,*) crabamp, EJF1, EJF0,clight, "HELLO"
         crabfreq=ek(ix)*c1e3
+!output__eeeee
         crabpht=crabph(ix)
+        rbetaa = E0/E0F
 *FOX  Y(1)=Y(1) - CRABAMP*C1E3*
 *FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT*X(1)*
+*FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT/X(1)*
 *FOX  COS(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
 *FOX  EJF0=EJF1 ;
 *FOX  DPDA=DPDA1*C1M3 ;
@@ -21829,19 +21810,32 @@ C Should get me a NaN
           goto 440
       endif
         if(kzz.eq.-23) then
-*FOX  CRABAMP=ED(IX)/(EJF1) ;
+*FOX  CRABAMP=ED(IX) ;
            crabfreq=ek(ix)*c1e3
            crabpht=crabph(ix)
-*FOX  Y(2)=Y(2) - CRABAMP*C1E3*
-*FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
-*FOX  DPDA1=DPDA1 - CRABAMP*CRABFREQ*2D0*PI/CLIGHT*X(2)*
-*FOX  COS(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI + CRABPHT) ;
+           rbetaa = E0F/E0
+*FOX  Y(2)=Y(2) - CRABAMP*C1E3/E0F*
+*FOX  SIN((SIGMDA/C1E3/(CLIGHT*RBETAA)
+*FOX  *CRABFREQ*2D0*PI + CRABPHT))/(1+DPDA) ;
+
+*FOX  EJ1=EJ1-CRABAMP
+*FOX  *CRABFREQ*2D0*PI/C1E3/(CLIGHT)*X(2)*
+*FOX  COS((SIGMDA/C1E3/(CLIGHT*RBETAA)
+*FOX  *CRABFREQ*2D0*PI + CRABPHT)) ;
+
+
+!*FOX  EJF1=E0F*(ONE+DPDA) ;
+!*FOX  EJ1=SQRT(EJF1*EJF1+PMA*PMA) ;
+
 *FOX  EJF0=EJF1 ;
+*FOX  EJF1=SQRT(EJ1*EJ1-PMA*PMA) ;
+*FOX  DPDA1 = (EJF1-E0F)/E0F*C1E3 ;
+
+*FOX  RV=EJ1/E0*E0F/EJF1 ;
 *FOX  DPDA=DPDA1*C1M3 ;
-*FOX  EJF1=E0F*(ONE+DPDA) ;
-*FOX  EJ1=SQRT(EJF1*EJF1+PMA*PMA) ;
 *FOX  Y(1)=EJF0/EJF1*Y(1) ;
 *FOX  Y(2)=EJF0/EJF1*Y(2) ;
+
           goto 440
       endif
 
@@ -21868,7 +21862,7 @@ C Should get me a NaN
 *FOX  CIKVE*CIKVE)*(((CRABFREQ*2D0)*PI)/CLIGHT)*C1M3*
 *FOX  SIN(SIGMDA/C1E3/CLIGHT*CRABFREQ*2D0*PI+CRABPHT2) ;
 *FOX  EJF0=EJF1 ;
-*FOX  DPDA=DPDA1*C1M3 ;
+*FOX  DPDA=DPDA1*C1E3 ;
 *FOX  EJF1=E0F*(ONE+DPDA) ;
 *FOX  EJ1=SQRT(EJF1*EJF1+PMA*PMA) ;
 *FOX  Y(1)=EJF0/EJF1*Y(1) ;
