@@ -1893,13 +1893,25 @@ subroutine initialize_element(ix,lfirst)
 !c$$$         end if
 
          ! Moved from daten():
+<<<<<<< Updated upstream
          if (abs(el(ix)+one).le.pieni) then !Horizontal bending magnet
+=======
+         print *, "abssssssss", el(ix), "pieni", pieni
+         print *, "el", el(ix), "ed", ed(ix), "ek", ek(ix)
+         if (abs(el(ix)+one).le.pieni) then
+
+>>>>>>> Stashed changes
             dki(ix,1) = ed(ix)
             dki(ix,3) = ek(ix)
             ed(ix) = one
             ek(ix) = one
             el(ix) = zero
+<<<<<<< Updated upstream
          else if(abs(el(ix)+two).le.pieni) then !Vertical Bending Magnet
+=======
+                     print *, "hereeeeee", dki(ix,1), dki(ix,3) 
+         else if(abs(el(ix)+two).le.pieni) then
+>>>>>>> Stashed changes
             dki(ix,2) = ed(ix)
             dki(ix,3) = ek(ix)
             ed(ix) = one
