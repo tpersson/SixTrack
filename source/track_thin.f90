@@ -293,25 +293,26 @@ subroutine trauthin(nthinerr)
           end if
           ktrack(i) = 31
         else if(abs(dki(ix,1)).gt.pieni.and.abs(dki(ix,2)).le.pieni) then
-          if(abs(dki(ix,3)).gt.pieni) then
-            ktrack(i) = 33
+          if(abs(dki(ix,3)).gt.pieni) then 
+            ktrack(i) = 33 !Horizontal Bend with a fictive length
 #include "include/stra11.f90"
           else
-            ktrack(i) = 35
+            ktrack(i) = 35 !Horizontal Bend without a ficitve length
 #include "include/stra12.f90"
           end if
-        else if(abs(dki(ix,1)).le.pieni.and.abs(dki(ix,2)).gt.pieni) then
-          if(abs(dki(ix,3)).gt.pieni) then
-            ktrack(i) = 37
+        else if(abs(dki(ix,1)).le.pieni.and.abs(dki(ix,2)).gt.pieni) then 
+          if(abs(dki(ix,3)).gt.pieni) then 
+            ktrack(i) = 37 !Vertical bending with fictive length
 #include "include/stra13.f90"
           else
-            ktrack(i) = 39
+            ktrack(i) = 39 !Vertical bending without fictive length
 #include "include/stra14.f90"
           end if
         end if
       else
+      !These are the same as above with the difference that they also will have multipoles associated with them. 
         if(abs(dki(ix,1)).le.pieni.and.abs(dki(ix,2)).le.pieni) then
-          ktrack(i) = 32
+          ktrack(i) = 32 ! No bending (can be usefull in case there are multipoles)
         else if(abs(dki(ix,1)).gt.pieni.and.abs(dki(ix,2)).le.pieni) then
           if(abs(dki(ix,3)).gt.pieni) then
             ktrack(i) = 34

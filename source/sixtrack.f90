@@ -1893,13 +1893,13 @@ subroutine initialize_element(ix,lfirst)
 !c$$$         end if
 
          ! Moved from daten():
-         if (abs(el(ix)+one).le.pieni) then
+         if (abs(el(ix)+one).le.pieni) then !Horizontal bending magnet
             dki(ix,1) = ed(ix)
             dki(ix,3) = ek(ix)
             ed(ix) = one
             ek(ix) = one
             el(ix) = zero
-         else if(abs(el(ix)+two).le.pieni) then
+         else if(abs(el(ix)+two).le.pieni) then !Vertical Bending Magnet
             dki(ix,2) = ed(ix)
             dki(ix,3) = ek(ix)
             ed(ix) = one
