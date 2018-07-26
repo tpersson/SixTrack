@@ -1,6 +1,7 @@
 !--beam-beam element
         if(kzz.eq.20.and.nbeam.ge.1.and.parbe(ix,2).eq.zero) then         !hr08
             strack(i)=crad*ptnfac(ix)
+            print *, "heeerraaa"
             if(abs(strack(i)).le.pieni) then
               ktrack(i)=31
               goto 290

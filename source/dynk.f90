@@ -28,7 +28,8 @@ module dynk
   integer, save :: dynk_maxiData
   integer, save :: dynk_maxfData
   integer, save :: dynk_maxcData
-
+  real(kind=fPrec), save ::  am_temp(6,6)
+  real, save:: idummy_temp(6)
   ! 1 row/FUN, cols are:
   ! (1) = function name in fort.3 (points within dynk_cData),
   ! (2) = indicates function type
@@ -2968,16 +2969,20 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
 
             ! Not yet supported
             ! beam-beam separation
-            ! else if (abs(el_type).eq.20) then
-            !     if (att_name_stripped.eq."horizontal") then ! [mm]
-            !         ed(ii) = dynk_computeFUN(funNum,turn)
-            !     else if (att_name_stripped.eq."vertical") then ! [mm]
-            !         ek(ii) = dynk_computeFUN(funNum,turn)
-            !     else if (att_name_stripped.eq."strength") then ! [m]
-            !         el(ii) = dynk_computeFUN(funNum,turn)
-            !     else
-            !         goto 100 ! ERROR
-            !     end if
+            !parbe(j,5)  = separx
+            !parbe(j,6)  = separy
+             else if (abs(el_type).eq.20) then
+                 if (att_name_stripped.eq."horizontal") then ! [mm]
+                     parbe(ii,5) = newValue
+                 else if (att_name_stripped.eq."vertical") then ! [mm]
+                     parbe(ii,6) = newValue
+                 else if (att_name_stripped.eq."strength") then ! [m]
+                 print *,"sss",newValue
+                     ptnfac(ii) = newValue
+                     parbe(ii,4)=(((-one*crad)*ptnfac(ii))*half)*c1m6  
+                 else
+                     goto 100 ! ERROR
+                 end if
 
             else if ((abs(el_type).eq.23).or. &  ! crab cavity
                      (abs(el_type).eq.26).or. &  ! cc mult. kick order 2
@@ -3116,16 +3121,18 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
                 else
                     goto 100 ! ERROR
                 end if
-
+      
+     ! nmz = nmu(ix)
             ! Multipoles (Not yet supported)
-            ! else if (abs(el_type).eq.11) then
-            !     if (att_name_s.eq."bending_str") then
-            !         dynk_getvalue = dynk_elemdata(ii,2)
-            !     elseif (att_name_s.eq."radius") then
-            !         dynk_getvalue = dynk_elemdata(ii,3)
-            !     else
-            !         goto 100 ! ERROR
-            !     end if
+             else if (abs(el_type).eq.11) then
+                 if (att_name_s.eq."bending_str") then
+                     dynk_getvalue = ed(ii)
+                 elseif (att_name_s.eq."radius") then
+                     dynk_getvalue = ek(ix)
+                 else
+                      
+                     goto 100 ! ERROR
+                 end if
 
             ! Cavities
             else if (abs(el_type).eq.12) then
@@ -3157,19 +3164,22 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
 
             ! Not yet supported
             ! beam-beam separation
-            ! else if (abs(el_type).eq.20) then
-            !     if (att_name_s.eq."horizontal") then ! [mm]
-            !         nretdata = nretdata+1
-            !         retdata(nretdata) = ed(ii)
-            !     else if (att_name_s.eq."vertical") then ! [mm]
-            !         nretdata = nretdata+1
-            !         retdata(nretdata) = ek(ii)
-            !     else if (att_name_s.eq."strength") then ! [m]
-            !         nretdata = nretdata+1
-            !         retdata(nretdata) = el(ii)
-            !     else
-            !         goto 100 ! ERROR
-            !     end if
+            !parbe(j,5)  = separx
+            !parbe(j,6)  = separy
+
+             else if (abs(el_type).eq.20) then
+                 if (att_name_s.eq."horizontal") then ! [mm]
+                     dynk_getvalue = parbe(ii,5)
+                 else if (att_name_s.eq."vertical") then ! [mm]
+                     dynk_getvalue= parbe(ii,6)
+                 else if (att_name_s.eq."strength") then ! [m]
+                     dynk_getvalue= ptnfac(ii)
+
+                !call clorda(2*3,idummy_temp,am_temp)
+                !call clorda(2*3,idummy_temp,am_temp)
+                 else
+                     goto 100 ! ERROR
+                 end if
 
             else if ((abs(el_type).eq.23).or. & ! crab cavity
                      (abs(el_type).eq.26).or. & ! cc mult. kick order 2

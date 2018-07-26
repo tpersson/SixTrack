@@ -2946,7 +2946,7 @@ subroutine sixin_parseInputLineBEAM(inLine, iLine, iErr)
     if(nSplit > 6) call chr_cast(lnSplit(7),ibtyp,       iErr)
     if(nSplit > 7) call chr_cast(lnSplit(8),lhc,         iErr)
     if(nSplit > 8) call chr_cast(lnSplit(9),ibbc,        iErr)
-
+    print *, "expert", partnum
     if(st_debug) then
       call sixin_echoVal("partnum",partnum,     "BEAM",iLine)
       call sixin_echoVal("emitnx", sixin_emitNX,"BEAM",iLine)
@@ -3069,7 +3069,7 @@ subroutine sixin_parseInputLineBEAM_EXP(inLine, iLine, iErr)
     if(nSplit > 6) call chr_cast(lnSplit(7),ibtyp,       iErr)
     if(nSplit > 7) call chr_cast(lnSplit(8),lhc,         iErr)
     if(nSplit > 8) call chr_cast(lnSplit(9),ibbc,        iErr)
-
+    print *, "eee2", partnum
     if(st_debug) then
       call sixin_echoVal("partnum",partnum,     "BEAM",iLine)
       call sixin_echoVal("emitnx", sixin_emitNX,"BEAM",iLine)
@@ -3275,6 +3275,7 @@ subroutine sixin_parseInputLineBEAM_EXP(inLine, iLine, iErr)
             parbe(j,15) = mm(9)
             parbe(j,16) = mm(10)
             ptnfac(j)   = mm(11)
+            print *, "aaaa", parbe(j,7), ptnfac(j)
           end if
         end if
      end do

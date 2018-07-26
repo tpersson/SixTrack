@@ -45,6 +45,7 @@ for i in $(ls -d */); do
 	diff -q tmp/singletrackfile.dat.canonical.ascii tmp/fort.90.canonical.ascii
 	if [[ $? != 0 ]]; then
 	    echo "ERROR: Canonicals does not match in '"${i%%/}"'"
+	    exit 1
 	fi
 	set -e
     else

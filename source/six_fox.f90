@@ -2662,6 +2662,7 @@ end subroutine wireda
 !  CALCULATION OF THE SIX-DIMENSIONAL CLOSED ORBIT
 !-----------------------------------------------------------------------
 subroutine clorda(nn,idummy,am)
+
   use floatPrecision
   use numerical_constants
   use mathlib_bouncer
@@ -2682,6 +2683,7 @@ subroutine clorda(nn,idummy,am)
   save
 !-----------------------------------------------------------------------
   nd2=2*ndimf
+  print *, "cloooooooorddddaaaa", nn, idummy, am
   write(lout,10010) nd2
   do l=1,nd2
     xx(l)=zero
