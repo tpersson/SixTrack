@@ -2977,12 +2977,35 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
                  else if (att_name_stripped.eq."vertical") then ! [mm]
                      parbe(ii,6) = newValue
                  else if (att_name_stripped.eq."strength") then ! [m]
-                 print *,"sss",newValue
+
                      ptnfac(ii) = newValue
                      parbe(ii,4)=(((-one*crad)*ptnfac(ii))*half)*c1m6  
+                     call mydaini(1,2,6,3,6,1) ! Is this the right numbers?
+
                  else
                      goto 100 ! ERROR
                  end if
+                 if(ibeco.eq.1) then
+                 ! I want to know about ix and i.. now it is 1.. 
+                    call mydaini(1,2,6,3,6,1) ! Is this the right numbers?
+                    track6d(1,1)=parbe(ii,5)*10e-3
+                    track6d(2,1)=zero
+                    track6d(3,1)=parbe(ii,6)*10e-3
+                    track6d(4,1)=zero
+                    track6d(5,1)=zero
+                    track6d(6,1)=zero
+
+                    call beamint(1,track6d,parbe,sigz,bbcu,imbb(1),ii,ibtyp,ibbc)
+                    beamoff(1,imbb(1))=track6d(1,1)*c1e3
+                    beamoff(2,imbb(1))=track6d(3,1)*c1e3
+                    beamoff(3,imbb(1))=track6d(5,1)*c1e3
+                    beamoff(4,imbb(1))=track6d(2,1)*c1e3
+                    beamoff(5,imbb(1))=track6d(4,1)*c1e3
+                    beamoff(6,imbb(1))=track6d(6,1)
+
+                 endif
+
+
 
             else if ((abs(el_type).eq.23).or. &  ! crab cavity
                      (abs(el_type).eq.26).or. &  ! cc mult. kick order 2
@@ -3123,16 +3146,17 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
                 end if
       
      ! nmz = nmu(ix)
-            ! Multipoles (Not yet supported)
-             else if (abs(el_type).eq.11) then
-                 if (att_name_s.eq."bending_str") then
-                     dynk_getvalue = ed(ii)
-                 elseif (att_name_s.eq."radius") then
-                     dynk_getvalue = ek(ix)
-                 else
+            !
+           !  Multipoles (Not yet supported)
+            ! else if (abs(el_type).eq.11) then
+                 !if (att_name_s.eq."bending_str") then
+                  !   dynk_getvalue = ed(ii)
+                 !elseif (att_name_s.eq."radius") then
+                !     dynk_getvalue = ek(ix)
+               !  else
                       
-                     goto 100 ! ERROR
-                 end if
+              !       goto 100 ! ERROR
+             !    end if
 
             ! Cavities
             else if (abs(el_type).eq.12) then

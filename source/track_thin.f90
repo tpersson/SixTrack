@@ -106,6 +106,7 @@ subroutine trauthin(nthinerr)
       ktrack(i)=31
       goto 290
     endif
+  print *, "kzzzzz", kzz, ibtyp
 #include "include/beams21.f90"
 #include "include/beamcoo.f90"
 #include "include/beamr1.f90"
@@ -700,7 +701,7 @@ subroutine thin4d(nthinerr)
               write(lout,*) "BDEX> BDEX only available for thin6d"
               call prror(-1)
           endif
-
+      print *, "kkkkk", ktrack(i)
       select case (ktrack(i))
       case (1)
         stracki=strack(i)
@@ -1384,7 +1385,8 @@ subroutine thin6d(nthinerr)
 #ifdef COLLIMAT
       dotrack = myktrack
 #endif
-
+      print *, "kkkkk", dotrack
+  
       select case(dotrack)
       case (1)
         stracki=strack(i)

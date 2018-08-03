@@ -1,3 +1,4 @@
+print *, "ibbbccccc", ibbc
 if(ibbc.eq.0) then
   crkveb(j)=parbe(ix,5)
   cikveb(j)=parbe(ix,6)

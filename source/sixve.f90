@@ -757,6 +757,7 @@ subroutine mydaini(ncase,nnord,nnvar,nndim,nnvar2,nnord1)
 #ifdef DEBUG
 !     write(*,*) 'ncase=',ncase,' if 1 call clorda'
 #endif
+  print *, "iii", ndimf, idummy, am
   if(ncase.eq.1) call clorda(2*ndimf,idummy,am)
 #ifdef DEBUG
 !     call dumpbin('aclorda',1,11)
@@ -766,6 +767,7 @@ subroutine mydaini(ncase,nnord,nnvar,nndim,nnvar2,nnord1)
 #ifdef DEBUG
 !     write(*,*) 'ncase=',ncase,' if 2 call umlauda'
 #endif
+print *, "sixveeeeee"
   if(ncase.eq.2) call umlauda
 #ifdef DEBUG
 !     if(ncase.eq.2) then
