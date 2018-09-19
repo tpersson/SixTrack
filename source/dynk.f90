@@ -2379,7 +2379,9 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
         endif
 
         im=irm(ii)
-        if(att_name(1:5) == "a_rms") then
+        if(att_name == "scale_all") then
+            scalemu(im) = newValue
+        else if(att_name(1:5) == "a_rms") then
           aka(im,orderMult) = newValue
         else if(att_name(1:5)=="b_rms") then
           bka(im,orderMult) = newValue
@@ -2543,7 +2545,9 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
           endif
 
           im=irm(ii)
-          if(att_name(1:5) == "a_rms") then
+          if(att_name == "scale_all") then
+            dynk_getvalue = scalemu(im)
+          else if(att_name(1:5) == "a_rms") then
             dynk_getvalue = aka(im,orderMult)
           else if(att_name(1:5)=="b_rms") then
             dynk_getvalue = bka(im,orderMult) 

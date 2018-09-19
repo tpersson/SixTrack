@@ -1706,7 +1706,7 @@ subroutine initialize_element(ix,lfirst)
 
       !Temp variables
       integer i, m, k, im, nmz, izu
-      real(kind=fPrec) r0, r0a
+      real(kind=fPrec) r0, r0a, bstretemp
 
 !--Nonlinear Elements
 ! TODO: Merge these cases into 1 + subcases?
@@ -1856,7 +1856,7 @@ subroutine initialize_element(ix,lfirst)
 
          ! Moved from daten():
          if (lfirst) then
-            print *, "heeeerreeeeeee"
+
            if (abs(el(ix)+one).le.pieni) then
               dki(ix,1) = ed(ix)
               dki(ix,3) = ek(ix)
@@ -1874,15 +1874,20 @@ subroutine initialize_element(ix,lfirst)
         if (.not.lfirst) then
           do i=1,iu
             if ( ic(i)-nblo.eq.ix ) then
+            if(abs(dki(ix,1)) > pieni) then !Check for horizontal
+              bstretemp = dki(ix,1)
+            else
+              bstretemp = dki(ix,2)
+            endif
               r0 = dki(ix,3)
               nmz=nmu(ix)
               im=irm(ix)
               r0a=one
               do k=1,nmz            
-                aaiv(k,i)=(dki(ix,1)*(ak0(im,k)+amultip(k,i)*aka(im,k)))/r0a !At the moment only horizontal dipoles ! 
-                bbiv(k,i)=(dki(ix,1)*(bk0(im,k)+bmultip(k,i)*bka(im,k)))/r0a !Horizontal dipoles 
+                aaiv(k,i)=scalemu(im)*((dki(ix,1)*(ak0(im,k)+amultip(k,i)*aka(im,k)))/r0a) !At the moment only horizontal dipoles ! 
+                bbiv(k,i)=scalemu(im)*((dki(ix,1)*(bk0(im,k)+bmultip(k,i)*bka(im,k)))/r0a) !Horizontal dipoles 
                 r0a=r0a*r0
-                print *, dki(ix,3), mmul, k, im, r0a, i,ix, bk0(im,k), bmultip(k,i), bka(im,k), bbiv(k,i), "a22aaaa"
+                print *, dki(ix,3), mmul, k, im, r0a, i,ix, bk0(im,k), bmultip(k,i), bka(im,k), bbiv(k,i), scalemu(im), "a22aaaa"
               end do
             endif
           enddo
