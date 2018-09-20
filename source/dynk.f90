@@ -2418,7 +2418,15 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
       ! Not yet supported : AC dipole (16)
 
       ! Not yet supported : beam-beam separation (20)
+      case(20)
+       if (att_name_stripped.eq."horizontal") then ! [mm]
+           parbe(ii,5) = newValue
+       else if (att_name_stripped.eq."vertical") then ! [mm]
+           parbe(ii,6) = newValue
+       else if (att_name_stripped.eq."strength") then ! [m]
 
+           ptnfac(ii) = newValue
+           parbe(ii,4)=(((-one*crad)*ptnfac(ii))*half)*c1m6 
       case(23,26,27,28)
         ! crab cavity, cc mult. kick order 2,3 and 4
         if(att_name == "voltage") then ! [MV]
@@ -2579,6 +2587,16 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
       ! Not yet supported : AC dipole (16)
 
       ! Not yet supported : beam-beam separation (20)
+      case(20)
+       if (att_name_s.eq."horizontal") then ! [mm]
+           dynk_getvalue = parbe(ii,5)
+       else if (att_name_s.eq."vertical") then ! [mm]
+           dynk_getvalue= parbe(ii,6)
+       else if (att_name_s.eq."strength") then ! [m]
+           dynk_getvalue= ptnfac(ii)
+       else
+        goto 100
+       endif
 
       case(23,26,27,28) ! crab cavity, cc mult. kick order 2, 3 and 4
         if(att_name == "voltage") then ! [MV]
@@ -2599,7 +2617,7 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
           goto 100 ! ERROR
         end if
 
-      case(20) ! Electron lens
+      case(29) ! Electron lens
         if(att_name == "theta_r2") then ! [mrad]
           dynk_getvalue = elens_theta_r2(ii)
         else
