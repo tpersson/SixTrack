@@ -43,12 +43,6 @@ end do
   krf = (((one/(clight*(e0f/e0)))*crabfreq)*two)*pi
   
 
-
-  print * , "krf",  "crabfreq", "crabamp",  "phase", pnl, normal
-  print * , krf, crabfreq, crabamp, crabph(ix), pnl, normal, "ddddd"
-  print *, psl, skew, "skeeewww11"
-
-
     x_t = xv1(j)*c1m3 
     y_t = xv2(j)*c1m3
 
@@ -60,16 +54,15 @@ end do
 
     Cm2 = zero; Sm2a = zero; Cm1 = zero; Sm1a = zero;
     Cp0 = zero; Sp0 = zero; Cp1 = zero; Sp1 = zero;
-
-    do iord = nordm-1, 0, -1
-      if(iord .eq. nordm-1) then
+    dpx = one
+    do iord = nordm, 1, -1
+      if(iord .eq. nordm) then
         Cp0 = field_cos(1)+imag*field_cos(2);
         Sp1 = field_sin(1)+imag*field_sin(2);
       else 
-        Cp0 = Cp0 * (x_t+imag*y_t) / (iord+1)  
-        Sp1 = Sp1 * (x_t+imag*y_t) / (iord+2) 
-        print *, "ooord",  (iord+1)
-        print *, "ooorf2",  (iord+2)
+        Cp0 = Cp0 * (x_t+imag*y_t) / (iord)  
+        Sp1 = Sp1 * (x_t+imag*y_t) / (iord+1) 
+        dpx = dpx*(iord+1)
       endif
     enddo
     Sp1 = Sp1 * (x_t+imag*y_t);
