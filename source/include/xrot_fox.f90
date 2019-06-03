@@ -15,13 +15,13 @@ print *, "gooiinggg hereee first", temp_angle,  sin_t, cos_t, cos_mb(temp_angle)
 
 
 !FOX  ZTDA = SQRT((ONE + DPDA)*(ONE + DPDA) 
-!FOX  - TEMPI(2)*TEMPI(2) - TEMPI(4)*TEMPI(4)) ;
+!FOX  - (TEMPI(2)*TEMPI(2) - TEMPI(4)*TEMPI(4))) ;
 
-!FOX  PTTDA = ONE - (TAN_T*TEMPI(4))/ZTDA ;
+!FOX  PTTDA = ONE - ((TAN_T*TEMPI(4))/ZTDA) ;
 
 !FOX  X(1) = X(1) + 
-!FOX  C1E3*(TAN_T*TEMPI(3)*TEMPI(2)/(ZTDA*PTTDA)) ;
-!FOX  X(2) = C1E3*TEMPI(3)/(COS_T*PTTDA) ;
-!FOX  Y(2) = C1E3*(COS_T*TEMPI(4) + SIN_T*ZTDA)/(ONE+DPDA)/MTCDA ;
-!FOX  SIGMDA = SIGMDA - C1E3*((TAN_T*TEMPI(3)*
+!FOX  C1E3*((TAN_T*(TEMPI(3)*TEMPI(2))/(ZTDA*PTTDA))) ;
+!FOX  X(2) = (C1E3*TEMPI(3))/(COS_T*PTTDA) ;
+!FOX  Y(2) = C1E3*(COS_T*TEMPI(4) + SIN_T*ZTDA)/((ONE+DPDA)/MTCDA) ;
+!FOX  SIGMDA = SIGMDA - C1E3*(((TAN_T*TEMPI(3))*
 !FOX  (ONE/(E0F/E0)+TEMPI(6))/(ZTDA*PTTDA))*(E0F/E0)) ;

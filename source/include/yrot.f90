@@ -1,7 +1,7 @@
 
-cos_t = cos(temp_angle)
-sin_t = sin(temp_angle)
-tan_t = tan(temp_angle)
+cos_t = cos_mb(temp_angle)
+sin_t = sin_mb(temp_angle)
+tan_t = tan_mb(temp_angle)
 
 do j=1,napx
 temptr(1)=c1m3*xv1(j)
