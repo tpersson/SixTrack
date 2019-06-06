@@ -1,3 +1,4 @@
+! start include/yrot.f90
 do j=1,napx
 temptr(1)=c1m3*xv1(j)
 temptr(2)=(c1m3*yv1(j))/moidpsv(j)
@@ -14,3 +15,4 @@ xv2(j) = xv2(j) + c1e3*(tan_t*(temptr(4)*temptr(1))/(z_temp*pttemp))
 yv1(j) = c1e3*(cos_t*temptr(2) + sin_t*z_temp)*moidpsv(j)
 sigmv(j) = sigmv(j) - c1e3*((tan_t*temptr(1)*(one/(e0f/e0)+temptr(6))/(z_temp*pttemp))*(e0f/e0))
 enddo
+! end include/yrot.f90

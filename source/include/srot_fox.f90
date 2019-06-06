@@ -1,3 +1,4 @@
+! start include/srot_fox.f90
 !FOX  TEMPI(1) = X(1) ;
 !FOX  TEMPI(2) = Y(1) ;
 !FOX  TEMPI(3) = X(2) ;
@@ -7,3 +8,4 @@
 !FOX  Y(1) = TEMPI(2)*COS_T - TEMPI(4)*SIN_T ;
 !FOX  X(2) = TEMPI(1)*SIN_T + TEMPI(3)*COS_T ;
 !FOX  Y(2) = TEMPI(2)*SIN_T + TEMPI(4)*COS_T ;
+! end include/srot_fox.f90

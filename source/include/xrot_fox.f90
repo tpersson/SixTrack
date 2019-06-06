@@ -1,3 +1,4 @@
+! start include/xrot_fox.f90
 !FOX  YP(1)=Y(1)*(ONE+DPDA)/MTCDA ;
 !FOX  YP(2)=Y(2)*(ONE+DPDA)/MTCDA ;
 
@@ -20,3 +21,4 @@
 !FOX  Y(2) = C1E3*(COS_T*TEMPI(4) + SIN_T*ZTDA)/(ONE+DPDA)/MTCDA ;
 !FOX  SIGMDA = SIGMDA - C1E3*((TAN_T*TEMPI(3)*
 !FOX  (ONE/(E0F/E0)+TEMPI(6))/(ZTDA*PTTDA))*(E0F/E0)) ;
+! start include/xrot_fox.f90
