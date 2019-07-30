@@ -1,4 +1,3 @@
-
 void print2file();
 void printdistsettings_(int *ndist);
 int getnumberdist_();

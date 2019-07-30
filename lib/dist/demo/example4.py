@@ -23,12 +23,13 @@ dist = cdll.LoadLibrary("./buildDemo/libhello.so")
 dist.initializedistribution_(byref(c_int(2)))
 myfile = "/home/tobias/codes/SixTrackTobias/test/orbit6d-element-quadrupole/START_DUMP"
 tas = readtasfromdump(myfile)
+
 settasmatrix(dist, tas)
 
 
 pia2 = np.pi*2
 momentum = c_double(6500)
-mass = c_double(938.0)
+mass = c_double(0.9380)
 eps = 2.0
 dim = c_int(6)
 zero = c_double(0)
@@ -79,7 +80,8 @@ ax = fig.add_subplot(111, projection='3d')
 ax.scatter(xd, yd, deltas)
 
 plt.figure(2)
-plt.scatter(xd,pxd)
-#plt.hist(e3)
+#plt.scatter(xd,pxd)
+plt.plot(xd,yd , '.')
+print(np.std(xd), np.std(pxd),np.std(yd), np.std(pyd), np.std(deltas), np.std(dp))
 
 plt.show()

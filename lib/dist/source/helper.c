@@ -571,8 +571,6 @@ void solve2by2eq(double a1, double b1, double c1, double a2, double b2, double c
     x[0] = (dx/det);
     x[1] = (dy/det);
 
-
-
 }
 
 /*For calculating Determinant of the Matrix */

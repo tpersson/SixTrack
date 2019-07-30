@@ -28,6 +28,8 @@ xa = []
 xpa = []
 beta= betx
 alfa =alfx
+myfile = "/home/tobias/codes/SixTrackTobias/test/orbit6d-element-dispersion/START_DUMP"
+tas = readtasfromdump(myfile)
 for i in range(0, len(thdeg)):
 	teta.append(thdeg[i])
 	xa.append(numpy.sqrt(eps*beta)*numpy.cos(teta[i]))

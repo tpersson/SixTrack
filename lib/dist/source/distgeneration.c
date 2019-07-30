@@ -78,15 +78,11 @@ void gen2sixcoord(){
                 //dist->distout_normalized[counter][p] = tmp_n[p];
             }
             counter++;
-        }
-                                                                   
-         
+        }                                                  
     }
     dist->totallength=counter;
     dist->isDistrcalculated=1;
 }
-
-
 
 
 /*This is to create a random distribution*/
@@ -192,7 +188,6 @@ void action2canonical_(double acangl[6], double cancord[6], double acoord[6]){
     }
 
     mtrx_vector_mult_pointer(dim,dim, dist->tas, acoord,cancord);
-     
 }
 
 int particle_within_limits_physical(double *physical){
