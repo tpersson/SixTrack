@@ -30,8 +30,8 @@ subroutine postpr(posi, numl_t)
   use mod_common_main, only : numxv,partID
   use mod_common, only : dpscor,sigcor,icode,idam,its6d,dphix,dphiz,qx0,qz0,    &
     dres,dfft,cma1,cma2,nstart,nstop,iskip,iconv,imad,ipos,iav,iwg,ivox,ivoz,   &
-    ires,ifh,toptit,kwtype,itf,icr,idis,icow,istw,iffw,nprint,ndafi,chromc,tlim,&
-    trtime,fort10,fort110,unit10,unit110,napxo
+    ires,ifh,toptit,kwtype,itf,icr,idis,icow,istw,iffw,nprint,ndafi,chromc,     &
+    fort10,fort110,unit10,unit110,napxo
 #ifdef ROOT
   use root_output
 #endif
@@ -73,6 +73,11 @@ subroutine postpr(posi, numl_t)
   real(kind=real64) b_tmp,c_tmp,d_tmp,e_tmp,f_tmp,g_tmp,h_tmp,p_tmp
   real(kind=real64) c1_tmp,d1_tmp,e1_tmp,f1_tmp,g1_tmp,h1_tmp,p1_tmp
 
+#ifdef CERNLIB
+  !for passing infomation to the CERNLIB routines via a common block!
+  real hmal
+#endif
+
   character(len=80) title(20),chxtit(20),chytit(20)
   character(len=8)  cdate,ctime,progrm ! Note: Keep in sync with maincr
   character(len=80) sixtit,commen      ! Note: Keep in sync with mod_common. DANGER: If the len changes, CRCHECK will break.
@@ -97,6 +102,10 @@ subroutine postpr(posi, numl_t)
   integer itot,ttot
   save
 
+#ifdef CERNLIB
+  COMMON/PAWC/hmal(NPLO)
+#endif
+
   if(present(numl_t)) then
     nnuml = numl_t
   else
@@ -104,12 +113,7 @@ subroutine postpr(posi, numl_t)
   end if
 
 !----------------------------------------------------------------------
-!--TIME START
       pieni2=c1m8
-      tlim=c1e7
-      call time_timerStart
-      tim1=zero
-      call time_timerCheck(tim1)
 
       do i=1,npos
         do j=1,3
@@ -195,25 +199,15 @@ subroutine postpr(posi, numl_t)
         sumda(i)=zero
       end do
 
-      itot=0
-      ttot=0
-
-      do i=1,8
-        if (version(i:i).ne.' ') then
-          if (version(i:i).ne.'.') then
-            itot=itot*10+ichar(version(i:i))-ichar('0')
-          else
-            ttot=ttot*10**2+itot
-            itot=0
-          endif
-        endif
-      enddo
-
-      ttot=ttot*10**2+itot
-      sumda(52)=real(ttot,fPrec)
-! and put CPU time for Massimo
-! so even if we go to 550 we now get the stats
-      sumda(60)=real(trtime,fPrec)
+      sumda(52)=real(numvers,fPrec) ! SixTrack version
+      block
+        ! When we no longer need fort.10 for BOINC, delete this block and use the sumda(60)=-one line instead
+        use mod_time
+        real(kind=fPrec) pretime, trtime, posttime, tottime
+        call time_getSummary(pretime, trtime, posttime, tottime)
+        sumda(60)=trtime
+      end block
+      ! sumda(60)=-one                ! Dummy CPU time. No longer in use.
       b0=zero
       nlost=0
       ntwin=1
@@ -518,14 +512,23 @@ subroutine postpr(posi, numl_t)
       chytit(11)='Normalized FFT Signal'
       chxtit(12)='Vertical Tune Qy'
       chytit(12)='Normalized FFT Signal'
+
       if(idis.ne.0.or.icow.ne.0.or.istw.ne.0.or.iffw.ne.0) then
+!HBOOK HPLOT
+!Set image size (in cm), x,y,query :either ' ' to set, or 'R' to read
         call hplsiz(15.,15.,' ')
+!Axis values size (in cm) default 0.28
         call hplset('VSIZ',.24)
+!Axis label size (in cm) default 0.28
         call hplset('ASIZ',.19)
+!Distance to x axis labels (in cm) default 1.4
         call hplset('XLAB',1.5)
+!Distance to y axis labels (in cm) default 0.8
         call hplset('YLAB',1.0)
+!Global title size (in cm) default 0.28
         call hplset('GSIZ',.19)
       endif
+
       if(iav.lt.1) iav=1
       if(nprint.eq.1) then
         write(lout,10040) sixtit,commen
@@ -1002,12 +1005,9 @@ subroutine postpr(posi, numl_t)
       angi=zero
       angii=zero
       angiii=zero
-      if(abs(txyz(1)).gt.pieni.or.abs(txyz(2)).gt.pieni)                &
-     &angi=atan2_mb(txyz(2),txyz(1))
-      if(abs(txyz(3)).gt.pieni.or.abs(txyz(4)).gt.pieni)                &
-     &angii=atan2_mb(txyz(4),txyz(3))
-      if(abs(txyz(5)).gt.pieni.or.abs(txyz(6)).gt.pieni)                &
-     &angiii=atan2_mb(txyz(6)*cma1,txyz(5)*cma2)
+      if(abs(txyz(1)).gt.pieni.or.abs(txyz(2)).gt.pieni) angi=atan2_mb(txyz(2),txyz(1))
+      if(abs(txyz(3)).gt.pieni.or.abs(txyz(4)).gt.pieni) angii=atan2_mb(txyz(4),txyz(3))
+      if(abs(txyz(5)).gt.pieni.or.abs(txyz(6)).gt.pieni) angiii=atan2_mb(txyz(6)*cma1,txyz(5)*cma2)
       evt=evx+evz
       evxma=evx
       evzma=evz
@@ -1098,8 +1098,7 @@ subroutine postpr(posi, numl_t)
       if(nstop.gt.nstart.and.(ia-nstop).gt.0) goto 270
       i1=i1+1
       i11=i1+1
-      if(i2.ge.nlya.and.i11.gt.nfft.and.iapx.gt.npos.and.iapz.gt.npos)  &
-     &goto 270
+      if(i2.ge.nlya.and.i11.gt.nfft.and.iapx.gt.npos.and.iapz.gt.npos) goto 270
       if(i11.le.nfft) then
         xxr(i11)=c
         xxi(i11)=zero
@@ -1223,16 +1222,13 @@ subroutine postpr(posi, numl_t)
 !--ADDING OF THE PHASE ADVANCES
       sx=c*d0-c0*d
       cx=c0*c+d*d0
-      if(iapx.le.npos)                                                  &
-     &call cphase(1,dphx,sx,cx,qx0,ivox,iwarx,iapx)
+      if(iapx.le.npos) call cphase(1,dphx,sx,cx,qx0,ivox,iwarx,iapx)
       sz=e*f0-e0*f
       cz=e0*e+f*f0
-      if(iapz.le.npos)                                                  &
-     &call cphase(2,dphz,sz,cz,qz0,ivoz,iwarz,iapz)
+      if(iapz.le.npos) call cphase(2,dphz,sz,cz,qz0,ivoz,iwarz,iapz)
       s6=g*h0-g0*h
       c6=h0*h+g*g0
-      if(iap6.le.npos)                                                  &
-     &call cphase(3,dph6,s6,c6,qs0,ivo6,iwar6,iap6)
+      if(iap6.le.npos) call cphase(3,dph6,s6,c6,qs0,ivo6,iwar6,iap6)
 
 !--AVERAGING AFTER IAV TURNS
       if(mod(i1,iav).eq.0) then
@@ -1781,10 +1777,6 @@ subroutine postpr(posi, numl_t)
       if(ierro /= 0) then
         write(lerr,"(a,i0)") "POSTPR> ERROR Problems writing to "//trim(fort110)//". iostat = ",ierro
       end if
-#ifndef CRLIBM
-      write(ch,*,iostat=ierro) (sumda(i),i=1,60)
-      write(unit10,"(a)",iostat=ierro) trim(ch)
-#else
       l1=1
       do i=1,60
         call chr_fromReal(sumda(i),ch1,19,2,rErr)
@@ -1792,7 +1784,6 @@ subroutine postpr(posi, numl_t)
         l1=l1+26
       end do
       write(unit10,"(a)",iostat=ierro) ch(1:l1-1)
-#endif
       if(ierro /= 0) then
         write(lerr,"(a,i0)") "POSTPR> ERROR Problems writing to "//trim(fort10)//". iostat = ",ierro
       end if
@@ -1886,14 +1877,21 @@ subroutine postpr(posi, numl_t)
 !using http://cds.cern.ch/record/118642
 ! defines "general title"
           call htitle(title(i))
-! hbook 2 (2d hist) id, title, nx, xmin, xmax, ny, ymin, ymax, data_min - "bit precision" ?
+! hbook 2 (2d hist) id, title, nx, xmin, xmax, ny, ymin, ymax, data_max - "bit precision" ?
           call hbook2(i,' ',2,real(pmin(i1)),real(pmax(i1)), 2,real(pmin(i2)),real(pmax(i2)),0.)
+
+!ID, optios, projection options, slice election
           call hplot(i,' ',' ',0)
+!x,y axis titles
           call hplax(chxtit(i),chytit(i))
+
+!draw chars: x,y,text,size, angle, dummy, option (-1:left adjust, 0: center, 1:right adjust)
           call hplsof(4.,14.75,toptit(1),.15,0.,99.,-1)
           call hplsof(4.,14.50,toptit(2),.15,0.,99.,-1)
           call hplsof(4.,14.25,toptit(3),.15,0.,99.,-1)
           call hplsof(4.,14.00,toptit(4),.15,0.,99.,-1)
+
+!Selects normalization transformation when world coordinates are mapped to device coordinates (0 is default)
           call iselnt(10)
 
           rewind nfile
@@ -2049,6 +2047,8 @@ subroutine postpr(posi, numl_t)
 !--HBOOK FRAME
           call htitle(title(i))
           call hbook2(i,' ',2,real(pmin(i1)),real(pmax(i1)), 2,real(pmin(i2)),real(pmax(i2)),0.)
+
+!Set log y
           if(iffw.eq.2) call hplopt('LOGY',1)
           call hplot(i,' ',' ',0)
           call hplax(chxtit(i),chytit(i))
@@ -2056,7 +2056,10 @@ subroutine postpr(posi, numl_t)
           call hplsof(4.,14.50,toptit(2),.15,0.,99.,-1)
           call hplsof(4.,14.25,toptit(3),.15,0.,99.,-1)
           call hplsof(4.,14.00,toptit(4),.15,0.,99.,-1)
+
+!Selects normalization transformation when world coordinates are mapped to device coordinates (0 is default)
           call iselnt(10)
+
           if(i.eq.11) then
             do 480 k=if1,if2
               k1=k-if1+1
@@ -2155,10 +2158,6 @@ subroutine postpr(posi, numl_t)
       if(ierro /= 0) then
         write(lerr,"(a,i0)") "POSTPR> ERROR Problems writing to file 110. Error code ",ierro
       endif
-#ifndef CRLIBM
-      write(ch,*,iostat=ierro) (sumda(i),i=1,60)
-      write(unit10,"(a)",iostat=ierro) trim(ch)
-#else
       l1=1
       do i=1,60
         call chr_fromReal(sumda(i),ch1,19,2,rErr)
@@ -2166,7 +2165,6 @@ subroutine postpr(posi, numl_t)
         l1=l1+26
       enddo
       write(unit10,"(a)",iostat=ierro) ch(1:l1-1)
-#endif
       if(ierro /= 0) then
         write(lerr,"(a,i0)") "POSTPR> ERROR Problems writing to "//trim(fort10)//". iostat = ",ierro
       end if
@@ -2176,10 +2174,6 @@ subroutine postpr(posi, numl_t)
         rewind 14
         rewind 15
       end if
-!--TIME COUNT
-      tim2=0.
-      call time_timerCheck(tim2)
-      if(nprint.eq.1) write(lout,10280) tim2-tim1
 !----------------------------------------------------------------------
       return
 
@@ -2351,8 +2345,6 @@ subroutine postpr(posi, numl_t)
      &'[PI*MM*MRAD]',15x,'[%]',15x,'[%]',15x, '[%]'/10x,86('-')/ 10x,   &
      &'HORIZONTAL',6x,f16.10,3(6x,f12.6)/ 10x,'VERTICAL',8x,f16.10,3    &
      &(6x,f12.6)/ 10x,'SUM',13x,f16.10,3(6x,f12.6)/10x,86('-')//)
-10280 format(/10x,'Postprocessing took ',f12.3,' second(s)',            &
-     &' of Execution Time'//131('-')//)
 10290 format(//10x,'** ERROR ** ----- TRANSFORMATION MATRIX SINGULAR ' ,&
      &'(FILE : ',i2,') -----'//)
 10300 format(//10x,'** ERROR ** ----- FILE :',i2,' WITH TRACKING ' ,    &
@@ -2402,8 +2394,7 @@ subroutine fft(ar,ai,m,n)
         j=j-k
         k=k/2
         goto 20
-        j=j+k
-   30   continue
+   30   j=j+k
       end do
 
       do l=1,m
@@ -3199,6 +3190,7 @@ end subroutine lfitd
 
 end module postprocessing
 
+#ifndef CERNLIB
 subroutine hbook2(i1,c1,i2,r1,r2,i3,r3,r4,r5)
   implicit none
   integer i1,i2,i3
@@ -3297,6 +3289,7 @@ subroutine htitle(c1)
   return
 end subroutine htitle
 
+!draw polyline (n,x,y)
 subroutine ipl(i1,r1,r2)
   implicit none
   integer i1
@@ -3305,6 +3298,7 @@ subroutine ipl(i1,r1,r2)
   return
 end subroutine ipl
 
+!Draw polymarker (n,x,y)
 subroutine ipm(i1,r1,r2)
   implicit none
   integer i1
@@ -3326,3 +3320,5 @@ subroutine igmeta(i1,i2)
   save
   return
 end subroutine igmeta
+#endif
+

@@ -8,14 +8,16 @@ module coll_common
 
   implicit none
 
-  integer, parameter :: max_ncoll  = 100
-
   ! Logical Flags
-  logical, save :: dowrite_impact    = .false.
-  logical, save :: dowrite_dist      = .false.
-  logical, save :: dowrite_secondary = .false.
-  logical, save :: dowrite_amplitude = .false.
-  logical, save :: dowritetracks     = .false.
+  logical, save :: coll_debug         = .true.
+  logical, save :: dowrite_impact     = .false.
+  logical, save :: dowrite_dist       = .false.
+  logical, save :: dowrite_secondary  = .false.
+  logical, save :: dowrite_amplitude  = .false.
+  logical, save :: dowrite_tracks     = .false.
+  logical, save :: dowrite_efficiency = .false.
+  logical, save :: dowrite_crycoord   = .false.
+  logical, save :: coll_hasCrystal    = .false.
 
   ! Various Variables
   integer, save :: rnd_seed   = 0
@@ -28,6 +30,9 @@ module coll_common
   real(kind=fPrec), allocatable, save :: rcp(:)
   real(kind=fPrec), allocatable, save :: rcs(:)
 
+  ! Process index for interaction with crystals
+  integer, allocatable, save :: cry_proc(:)
+
   ! Pencil Beam
   integer,          save :: ipencil       = 0
   integer,          save :: pencil_distr  = 0
@@ -38,7 +43,18 @@ module coll_common
   real(kind=fPrec), save :: yp_pencil0    = zero
   real(kind=fPrec), allocatable, save :: x_pencil(:)
   real(kind=fPrec), allocatable, save :: y_pencil(:)
+  real(kind=fPrec), allocatable, save :: xp_pencil(:)
+  real(kind=fPrec), allocatable, save :: yp_pencil(:)
   real(kind=fPrec), allocatable, save :: pencil_dx(:)
+
+  ! Other Arrays
+  integer,          allocatable, save :: cn_impact(:)
+  integer,          allocatable, save :: cn_absorbed(:)
+  real(kind=fPrec), allocatable, save :: caverage(:)
+  real(kind=fPrec), allocatable, save :: csigma(:)
+  real(kind=fPrec), allocatable, save :: gap_rms_error(:)
+  real(kind=fPrec), allocatable, save :: csum(:)
+  real(kind=fPrec), allocatable, save :: csqsum(:)
 
   ! Output File Names
   character(len=12), parameter :: coll_survivalFile   = "survival.dat"
@@ -54,7 +70,6 @@ module coll_common
   character(len=16), parameter :: coll_fstImpactFile  = "FirstImpacts.dat"
   character(len=17), parameter :: coll_flukImpFile    = "FLUKA_impacts.dat"
   character(len=21), parameter :: coll_flukImpAllFile = "FLUKA_impacts_all.dat"
-  character(len=13), parameter :: coll_twissLikeFile  = "twisslike.out"
   character(len=17), parameter :: coll_sigmaSetFile   = "sigmasettings.out"
   character(len=16), parameter :: coll_settingsFile   = "collsettings.dat"
   character(len=16), parameter :: coll_jawProfileFile = "jaw_profiles.dat"
@@ -64,6 +79,9 @@ module coll_common
   character(len=14), parameter :: coll_efficFile      = "efficiency.dat"
   character(len=19), parameter :: coll_efficDPFile    = "efficiency_dpop.dat"
   character(len=17), parameter :: coll_effic2DFile    = "efficiency_2d.dat"
+  character(len=16), parameter :: coll_cryEntFile     = "cry_entrance.dat"
+  character(len=12), parameter :: coll_cryExitFile    = "cry_exit.dat"
+  character(len=19), parameter :: coll_cryInterFile   = "cry_interaction.dat"
 
   ! Output File Units
   integer, save :: outlun              = -1
@@ -80,7 +98,6 @@ module coll_common
   integer, save :: coll_fstImpactUnit  = -1
   integer, save :: coll_flukImpUnit    = -1
   integer, save :: coll_flukImpAllUnit = -1
-  integer, save :: coll_twissLikeUnit  = -1
   integer, save :: coll_sigmaSetUnit   = -1
   integer, save :: coll_settingsUnit   = -1
   integer, save :: coll_jawProfileUnit = -1
@@ -90,6 +107,9 @@ module coll_common
   integer, save :: coll_efficUnit      = -1
   integer, save :: coll_efficDPUnit    = -1
   integer, save :: coll_effic2DUnit    = -1
+  integer, save :: coll_cryEntUnit     = -1
+  integer, save :: coll_cryExitUnit    = -1
+  integer, save :: coll_cryInterUnit   = -1
 
 #ifdef HDF5
   ! Variables to save hdf5 dataset indices
@@ -117,11 +137,31 @@ subroutine coll_expandArrays(npart_new, nblz_new)
   call alloc(rcp,  npart_new, zero, "rcp")
   call alloc(rcs,  npart_new, zero, "rcs")
 
-  call alloc(x_pencil,  max_ncoll, zero, "x_pencil")
-  call alloc(y_pencil,  max_ncoll, zero, "y_pencil")
-  call alloc(pencil_dx, max_ncoll, zero, "pencil_dx")
+  call alloc(cry_proc, npart_new, -1, "cry_proc")
 
 end subroutine coll_expandArrays
+
+subroutine coll_expandNColl(nColl)
+
+  use mod_alloc
+  use numerical_constants
+
+  integer, intent(in) :: nColl
+
+  call alloc(cn_impact,     nColl, 0,    "cn_impact")
+  call alloc(cn_absorbed,   nColl, 0,    "cn_absorbed")
+  call alloc(caverage,      nColl, zero, "caverage")
+  call alloc(csigma,        nColl, zero, "csigma")
+  call alloc(gap_rms_error, nColl, zero, "gap_rms_error")
+  call alloc(csum,          nColl, zero, "csum")
+  call alloc(csqsum,        nColl, zero, "csqsum")
+  call alloc(x_pencil,      nColl, zero, "x_pencil")
+  call alloc(y_pencil,      nColl, zero, "y_pencil")
+  call alloc(xp_pencil,     nColl, zero, "xp_pencil")
+  call alloc(yp_pencil,     nColl, zero, "yp_pencil")
+  call alloc(pencil_dx,     nColl, zero, "pencil_dx")
+
+end subroutine coll_expandNColl
 
 end module coll_common
 
@@ -137,8 +177,8 @@ module coll_materials
 
   implicit none
 
-  integer, parameter :: nmat  = 14 ! Total number of materials
-  integer, parameter :: nrmat = 12 ! Number of real materials
+  integer, parameter :: nmat  = 16 ! Total number of materials
+  integer, parameter :: nrmat = 14 ! Number of real materials
 
   ! pp cross-sections and parameters for energy dependence
   real(kind=fPrec), parameter :: pptref = 0.04_fPrec
@@ -176,6 +216,8 @@ module coll_materials
     [3.016_fPrec, 1.724_fPrec, zero, zero, zero, 0.9070e-2_fPrec], & ! PB
     [0.337_fPrec, 0.232_fPrec, zero, zero, zero, 0.0076e-2_fPrec], & ! C
     [0.337_fPrec, 0.232_fPrec, zero, zero, zero, 0.0076e-2_fPrec], & ! C2
+    [0.664_fPrec, 0.430_fPrec, zero, zero, zero, 0.0390e-2_fPrec], & ! Si
+    [1.388_fPrec, 0.844_fPrec, zero, zero, zero, 0.1860e-2_fPrec], & ! Ge
     [0.362_fPrec, 0.247_fPrec, zero, zero, zero, 0.0094e-2_fPrec], & ! MoGR
     [0.572_fPrec, 0.370_fPrec, zero, zero, zero, 0.0279e-2_fPrec], & ! CuCD
     [1.713_fPrec, 1.023_fPrec, zero, zero, zero, 0.2650e-2_fPrec], & ! Mo
@@ -194,6 +236,8 @@ module coll_materials
     [zero, zero, zero, zero, zero, one], & ! PB
     [zero, zero, zero, zero, zero, one], & ! C
     [zero, zero, zero, zero, zero, one], & ! C2
+    [zero, zero, zero, zero, zero, one], & ! Si
+    [zero, zero, zero, zero, zero, one], & ! Ge
     [zero, zero, zero, zero, zero, one], & ! MoGR
     [zero, zero, zero, zero, zero, one], & ! CuCD
     [zero, zero, zero, zero, zero, one], & ! Mo
@@ -244,6 +288,7 @@ subroutine collmat_init
   radl(iMat)     =   0.089_fPrec
   bnref(iMat)    = 120.3_fPrec
 
+  ! Copper
   iMat = iMat + 1
   colmats(iMat)  = "CU"
   exenergy(iMat) = 322.0e-9_fPrec
@@ -255,6 +300,7 @@ subroutine collmat_init
   radl(iMat)     =   0.0143_fPrec
   bnref(iMat)    = 217.8_fPrec
 
+  ! Tungsten
   iMat = iMat + 1
   colmats(iMat)  = "W"
   exenergy(iMat) = 727.0e-9_fPrec
@@ -266,6 +312,7 @@ subroutine collmat_init
   radl(iMat)     =   0.0035_fPrec
   bnref(iMat)    = 440.3_fPrec
 
+  ! Lead
   iMat = iMat + 1
   colmats(iMat)  = "PB"
   exenergy(iMat) = 823.0e-9_fPrec
@@ -277,6 +324,7 @@ subroutine collmat_init
   radl(iMat)     =   0.0056_fPrec
   bnref(iMat)    = 455.3_fPrec
 
+  ! Carbon
   iMat = iMat + 1
   colmats(iMat)  = "C"
   exenergy(iMat) =  78.0e-9_fPrec
@@ -288,6 +336,7 @@ subroutine collmat_init
   radl(iMat)     =   0.2557_fPrec
   bnref(iMat)    =  70.0_fPrec
 
+  ! Carbon2
   iMat = iMat + 1
   colmats(iMat)  = "C2"
   exenergy(iMat) =  78.0e-9_fPrec
@@ -298,6 +347,30 @@ subroutine collmat_init
   hcut(iMat)     =   0.02_fPrec
   radl(iMat)     =   0.094_fPrec
   bnref(iMat)    =  70.0_fPrec
+
+  ! Silicon
+  iMat = iMat + 1
+  colmats(iMat)  = "Si"
+  exenergy(iMat) = 173.0e-9_fPrec
+  anuc(iMat)     =  28.08_fPrec
+  zatom(iMat)    =  14.00_fPrec
+  rho(iMat)      =   2.33_fPrec
+  emr(iMat)      =   0.441_fPrec
+  hcut(iMat)     =   0.02_fPrec
+  radl(iMat)     = one
+  bnref(iMat)    = 120.14_fPrec
+
+  ! Germanium
+  iMat = iMat + 1
+  colmats(iMat)  = "Ge"
+  exenergy(iMat) = 350.0e-9_fPrec
+  anuc(iMat)     =  72.63_fPrec
+  zatom(iMat)    =  32.00_fPrec
+  rho(iMat)      =   5.323_fPrec
+  emr(iMat)      =   0.605_fPrec
+  hcut(iMat)     =   0.02_fPrec
+  radl(iMat)     = one
+  bnref(iMat)    = 226.35_fPrec
 
   iMat = iMat + 1
   colmats(iMat)  = "MoGR"
@@ -361,6 +434,7 @@ subroutine collmat_init
 
   ! The following two must always be the last two materials
 
+  ! Vacuum
   iMat = iMat + 1
   colmats(iMat)  = "VA"
   exenergy(iMat) = zero
@@ -372,6 +446,7 @@ subroutine collmat_init
   radl(iMat)     = 1.0e12_fPrec
   bnref(iMat)    = zero
 
+  ! Black Absorber
   iMat = iMat + 1
   colmats(iMat)  = "BL"
   exenergy(iMat) = c1e10
@@ -398,7 +473,7 @@ end subroutine collmat_init
 ! ================================================================================================ !
 integer function collmat_getCollMatID(matName)
 
-  character(len=4), intent(in) :: matName
+  character(len=*), intent(in) :: matName
   integer i, matID
 
   matID = -1

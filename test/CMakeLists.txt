@@ -32,7 +32,9 @@ add_test(NAME SelfTest_splitSingletrack COMMAND splitSingletrack)
 set_tests_properties(SelfTest_splitSingletrack PROPERTIES PASS_REGULAR_EXPRESSION "Error in splitSingletrack -- file 'singletrackfile.dat' not found\.\n.*1")
 
 if(ZLIB)
-  add_test(NAME SelfTest_zlib COMMAND ${CMAKE_BINARY_DIR}/zlib/example)
+  if(32BIT)
+    add_test(NAME SelfTest_zlib COMMAND ${CMAKE_BINARY_DIR}/zlib/example)
+  endif()
   if(64BIT)
     add_test(NAME SelfTest_zlib_64 COMMAND ${CMAKE_BINARY_DIR}/zlib/example64)
   endif()
@@ -188,6 +190,10 @@ list(APPEND SIXTRACK_TESTS
 
 if(NOT CR)
   list(APPEND SIXTRACK_TESTS
+    collimation_cry_ge_am_hor_b2
+    collimation_cry_ge_vc_ver_b1
+    collimation_cry_si_ch_hor_b1
+    collimation_cry_si_vr_ver_b2
     collimation_dist_1h
     collimation_dist_1v
     collimation_dist_2h
@@ -255,6 +261,10 @@ set(TESTS_NOFORT10
   beam-HO_6D-simple-oldstyle
   beambeam4dDYNK
   beambeamDYNK
+  collimation_cry_ge_am_hor_b2
+  collimation_cry_ge_vc_ver_b1
+  collimation_cry_si_ch_hor_b1
+  collimation_cry_si_vr_ver_b2
   collimation_dist_1h
   collimation_dist_1v
   collimation_dist_2h
@@ -331,6 +341,10 @@ set(TESTS_NO_STF
   chebythin6d_DYNK
   chebythin6d_ions
   chebythin6d_ramp_DYNK
+  collimation_cry_ge_am_hor_b2
+  collimation_cry_ge_vc_ver_b1
+  collimation_cry_si_ch_hor_b1
+  collimation_cry_si_vr_ver_b2
   collimation_dist_1h
   collimation_dist_1v
   collimation_dist_2h
@@ -362,6 +376,8 @@ set(TESTS_NO_STF
   dump4
   dump5
   dump6
+  dynk_filelin
+  dynk_globalvars
   dynk_IIR
   dynk_operators
   dynk_polynomial
@@ -602,6 +618,10 @@ set(FAST_TESTS
   chebythin6d_DYNK
   chebythin6d_ions
   chebythin6d_ramp_DYNK
+  collimation_cry_ge_am_hor_b2
+  collimation_cry_ge_vc_ver_b1
+  collimation_cry_si_ch_hor_b1
+  collimation_cry_si_vr_ver_b2
   collimation_dist_1h
   collimation_dist_1v
   collimation_dist_2h
@@ -768,7 +788,9 @@ endforeach()
 
 # Zlib tests
 if(ZLIB)
-  set_property(TEST SelfTest_zlib PROPERTY LABELS tool fast)
+  if(32BIT)
+    set_property(TEST SelfTest_zlib PROPERTY LABELS tool fast)
+  endif()
   if(64BIT)
     set_property(TEST SelfTest_zlib_64 PROPERTY LABELS tool fast)
   endif()

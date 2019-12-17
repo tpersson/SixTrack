@@ -155,8 +155,8 @@ For the convention on signs for the last three (optional) aperture specifiers, p
 
     Octagon & \texttt{OC} & \texttt{aper\_1} & hor.~position of ver.~side [mm] \\*
     & & \texttt{aper\_2} & ver.~position of hor.~side [mm] \\*
-    & & \texttt{aper\_3} & angle of first cut corner [rad] \\*
-    & & \texttt{aper\_4} & angle of second cut corner [rad] \\*
+    & & \texttt{aper\_3} & angle of first cut corner [degree] \\*
+    & & \texttt{aper\_4} & angle of second cut corner [degree] \\*
     \hline
 
     Ractetrack & \texttt{RT} & \texttt{aper\_1} & hor.~displ.~of ellypse centre [mm] \\*
@@ -1880,11 +1880,13 @@ All flags default to \texttt{false}.
 
 \bigskip
 \begin{tabular}{@{}llp{0.7\linewidth}}
-    \texttt{WRITE\_DIST}   & Writes the beam distribution to file before and after tracking. \\
-    \texttt{WRITE\_IMPACT} & Writes the impact parameters for each collimator. \\
-    \texttt{WRITE\_SECOND} & Writes a secondary halo file based on normalised amplitude. \\
-    \texttt{WRITE\_AMPL}   & Writes checking files for amplitude, closed orbit. \\
-    \texttt{WRITE\_TRACKS} & Writes secondary/tertiary halo files.
+    \texttt{WRITE\_DIST}     & Writes the beam distribution to file before and after tracking. \\
+    \texttt{WRITE\_IMPACT}   & Writes the impact parameters for each collimator. \\
+    \texttt{WRITE\_SECOND}   & Writes a secondary halo file based on normalised amplitude. \\
+    \texttt{WRITE\_AMPL}     & Writes checking files for amplitude, closed orbit. \\
+    \texttt{WRITE\_EFFIC}    & Writes the efficiency files. \\
+    \texttt{WRITE\_TRACKS}   & Writes secondary/tertiary halo files. \\
+    \texttt{WRITE\_CRYCOORD} & Writes crystal coordinate file(s).
 \end{tabular}
 
 % ================================================================================================================================ %
@@ -1914,10 +1916,26 @@ The main section of the database consists of a list of collimator family declara
 The family declaration is optional, but it makes it easier to assign parameters to a group of collimators instead of specifying each one individually.
 In the main section, this is used to provide the default collimator opening.
 
-The collimator family settings are povided in exactly the same way as the \texttt{NISG\_FAM} keyword in the \texttt{COLL} block in \texttt{fort.3}.
-The keyword takes a family name and a collimator opening setting as input parameters.
-The settings in \texttt{fort.3} overrides the settings of the database.
+The collimator family settings are povided similarly to the \texttt{NISG\_FAM} keyword in the \texttt{COLL} block in \texttt{fort.3}.
+The keyword takes a family name, a collimator opening setting, and a collimator stage as input parameters.
+Note that the sigma settings in \texttt{fort.3} overrides the settings of the database.
 
+The collimator stage is not required, and defaults to \texttt{UNKNOWN}.
+Each collimator stage has a number associated with it that is an exponent of 2 (se table below).
+In files like \texttt{coll\_ellipse.dat} and \texttt{tracks2.dat}, the sum of these are printed, meaning the information of what collimator stages a particle (that has not been absorbed) has hit can be extracted.
+Only the first three characters of the collimator stage is required, the rest of the word is optional for clarity.
+
+\bigskip
+\begin{tabular}{@{}llp{0.7\linewidth}}
+    \texttt{PRIMARY}   &  1 & Primary collimators \\
+    \texttt{SECONDARY} &  2 & Secondary collimators \\
+    \texttt{TERTIARY}  &  4 & Tertiary collimators \\
+    \texttt{OTHER}     &  8 & Any other collimator \\
+    \texttt{CRYSTAL}   & 16 & Crystal collimators \\
+    \texttt{UNKNOWN}   & 32 & The collimator stage is unknown (default) \\
+\end{tabular}
+
+\bigskip
 The collimator key settings are provided in a table of either 6 or 8 columns.
 The latter two columns are optional.
 The formats are as follows:
@@ -1938,10 +1956,10 @@ The formats are as follows:
 
 \begin{cverbatim}
 # Families
-NSIG_FAM tcp3      12.000000
-NSIG_FAM tcsg3     15.600000
-NSIG_FAM tcsm3    999.000000
-NSIG_FAM tcla3     17.600000
+NSIG_FAM tcp3      12.000000 PRIMARY
+NSIG_FAM tcsg3     15.600000 SECODNARY
+NSIG_FAM tcsm3    999.000000 SECODNARY
+NSIG_FAM tcla3     17.600000 TERTIARY
 # Collimators
 # name          opening mat.   length[m]  angle[deg]  offset[m]    beta_x[m]    beta_y[m]
 tclx.4r1.b1        tclp Iner    1.000000    0.000000   0.000000  6812.605863  4597.092632
@@ -2016,6 +2034,37 @@ SETTINGS
 JAW_PROFILE FIT_A -1.0e-5 -2.4e-3 4.3e-3 -4.1e-3 1.8e-3 3.0e-4
 JAW_PROFILE FIT_B -1.0e-5 -2.4e-3 4.3e-3 -4.1e-3 1.8e-3 3.0e-4
 JAW_FIT tcsg7 15 FIT_A FIT_B 1.0 1.0 on on
+\end{cverbatim}
+
+\paragraph{Crystal Collimators} \texttt{CRYSTAL name Bend XDim YDim Thick Tilt MisCut Orient}\\
+
+This flag enables the collimator or collimator family specified in \texttt{name} to be treated as a crystal collimator.\index{crystal collimator}
+Crystal collimators require an additional set of parameters described in the following:
+
+\bigskip
+\begin{tabular}{@{}llp{0.7\linewidth}}
+    \texttt{Bend}   & float   & Bending radius of the crystal collimator in [m]. \\
+    \texttt{XDim}   & float   & Transverse dimension along the X axis of the crystal collimator in [m]. \\
+    \texttt{YDim}   & float   & Transverse dimension along the Y axis of the crystal collimator in [m]. \\
+    \texttt{Thick}  & float   & Thickness of the amorphous layer of the crystal collimator in [m]. \\
+    \texttt{Tilt}   & float   & Tilt of the crystal collimator in [rad] with respect to its default orientation (calculated as the divergence of the beam at that location, i.e. optimal orientation for channeling). \\
+    \texttt{MisCut} & float   & Miscut angle of the crystal collimator in [rad]. \\
+    \texttt{Orient} & integer & Used only for Si crystal collimators. Its value is either 1 (strip crystal, 110 planes) or 2 (quasi-mosaic crystal, 111 planes). \\
+\end{tabular}
+
+\bigskip
+All the parameters default to zero.
+Additional details on the physics principles of crystal collimation and benchmark against experimental data can be found in~\cite{crystal:1,crystal:2,crystal:3,crystal:4,crystal:5,crystal:6}.
+
+The main output file is the \texttt{cry\_interaction.dat} file.\index{crystal interaction}
+This file is enabled with the \texttt{WRITE\_CRYCOORD} flag in \texttt{fort.3}.
+In addition, if the \texttt{DEBUG} flag is set in the \texttt{SETTINGS} block (see Section~\ref{STSett}), a \texttt{cry\_entrance.dat} and \texttt{cry\_exit.dat} file is written as well.\index{crystal dump}
+
+\bigskip
+\noindent\textit{Example}
+\begin{cverbatim}
+SETTINGS
+CRYSTAL  cry.h.b1 61.54 2.0e-3 50.0e-3 0.0 0.0 0.0 1
 \end{cverbatim}
 
 % ================================================================================================================================ %
@@ -2108,25 +2157,25 @@ The old input block format is illustrated in the following example, and the asso
 
 \bigskip
 \begin{cverbatim}
-COLLIMATION----------------------------------------------------------------
-    .true.
-    50   7000000
-    3  5 .958  .0015  0.  0.  "nothing"  1. 129e-4  75.5
-    .true.  15.  18.  18.  20.  6.  7.  7.  10.0 1 0.0  999.0  8.0   7.5   999.0
-    8.3  8.3  8.3  8.3  8.3  8.3  8.3  8.3  5. 15.
-    0 19789.0  20150.0  1  1
-   -1.3899e-6  -9.345e-5  5.05324e-3  -1.6595e-2  2.15955e-2  -9.96261e-3  1.0
-   -1.3899e-6  -9.345e-5  5.05324e-3  -1.6595e-2  2.15955e-2  -9.96261e-3  1.0
-    0.503E-09  0.503E-09
-   .false. .false. 0 .true. TCP.C6L7.B1 .false. .true. .true. .true.
-   0.  0.  0.  0.
+COLLIMATION
+   .true.
+   50   7000000
+   3  5  0.958  0.0015  0.0  0.0  "nothing"  1.0 129e-4  75.5
+   .true.  15.0  18.0  18.0  20.0  6.0  7.0  7.0  10.0 1 0.0  999.0  8.0   7.5   999.0
+   8.3  8.3  8.3  8.3  8.3  8.3  8.3  8.3  5.0 15.0
+   0 19789.0  20150.0  1  1
+  -1.3899e-6  -9.345e-5  5.05324e-3  -1.6595e-2  2.15955e-2  -9.96261e-3  1.0
+  -1.3899e-6  -9.345e-5  5.05324e-3  -1.6595e-2  2.15955e-2  -9.96261e-3  1.0
+   0.503E-09  0.503E-09
+  .false. .false. 0 .true. TCP.C6L7.B1 .false. .true. .true. .true. .true.
+   0.0 0.0 0.0 0.0
    0   0   0   0   0   0   0   0   0   0   .false.
-   .false.  6.003  0.0015
-   0.  0.  .false. .false.
+  .false.  6.003  0.0015
+   0.0 0.0 .false. .false.
    0   0.0025  0.0   0.0   0
    "CollDB_V6.500_lowb_st.b1.data"  1
    .true. .false. WAbsVertLowbcoll  101  1  1.
-NEXT-----------------------------------------------------------------------------
+NEXT
 \end{cverbatim}
 
 \paragraph{Old Collimator Database Format}~\\
@@ -2319,6 +2368,8 @@ This structure is then repeated within the file for each of the collimators to b
         & \texttt{DOWRT\_SECOND} & logical & Writes a secondary halo file based on normalised amplitude. \\
         \cline{2-4}
         & \texttt{DOWRT\_AMPL}   & logical & Writes checking files for amplitude, closed orbit. \\
+        \cline{2-4}
+        & \texttt{DOWRT\_EFFIC}  & logical & Writes the efficiency files. \\
     \hline
 
     11  & \texttt{XBEAT}         & float   & Offset in $x$ for the computation of collimator in case of beta-beating\index{beta-beating}. \\
