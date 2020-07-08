@@ -42,6 +42,7 @@ program maincr
   use read_write,     only : writeFort12, readFort13, readFort33
   use collimation,    only : do_coll, coll_init, coll_exitCollimation
   use mod_ffield,     only : ffield_mod_init,ffield_mod_end
+  use elens,          only : elens_postLinopt
 
 #ifdef FLUKA
   use mod_fluka
@@ -81,13 +82,13 @@ program maincr
 
   implicit none
 
-  integer i,itiono,i2,i3,ia,ia2,iation,ib1,id,ie,ii,im,ip,iposc,ix,izu,j,jj,k,kpz,kzz,l,ncorruo,    &
+  integer i,itiono,i2,i3,ia,ia2,iation,ib1,id,ie,ii,im,ip,iposc,ix,izu,jj,k,kpz,kzz,l,ncorruo,    &
     ncrr,nd,nd2,ndafi2,nerror,nlino,nlinoo,nmz,nthinerr
   real(kind=fPrec) alf0s1,alf0s2,alf0s3,alf0x2,alf0x3,alf0z2,alf0z3,amp00,bet0s1,bet0s2,bet0s3,     &
     bet0x2,bet0x3,bet0z2,bet0z3,chi,coc,dam1,dchi,dp0,dp00,dp10,dpsic,dps0,dsign,gam0s1,gam0s2,     &
-    gam0s3,gam0x1,gam0x2,gam0x3,gam0z1,gam0z2,gam0z3,phag,r0,r0a,rat0,sic,tasia56,tasiar16,tasiar26,&
+    gam0s3,gam0x1,gam0x2,gam0x3,gam0z1,gam0z2,gam0z3,phag,rat0,sic,tasia56,tasiar16,tasiar26,&
     tasiar36,tasiar46,tasiar56,tasiar61,tasiar62,tasiar63,tasiar64,tasiar65,taus,x11,x13,damp,      &
-    eps(2),epsa(2),pretime,trtime,posttime,tottime
+    epsa(2),pretime,trtime,posttime,tottime
   integer idummy(6)
   character(len=4) cpto
 
@@ -96,6 +97,10 @@ program maincr
 
 #ifdef FLUKA
   integer fluka_con
+#endif
+
+#ifdef ROOT
+  integer j
 #endif
 
   ! New Variables
@@ -273,7 +278,6 @@ program maincr
   call time_timeStamp(time_afterCRCheck)
 #endif
 
-  call scatter_init
   call aperture_init
 
 #ifndef FLUKA
@@ -482,6 +486,10 @@ program maincr
   if(ilin == 1 .or. ilin == 3) then
     call linopt(dp1)
   end if
+
+  ! must be after linot
+  call scatter_init
+  call elens_postLinopt
 
   ! beam-beam element
   nlino = nlin
@@ -1167,6 +1175,9 @@ program maincr
     end if
   end if
 
+!Set the maximum Particle ID
+  MaximumPartID = npart
+
 #ifdef FLUKA
   ! P.Garcia Ortega, A.Mereghetti and V.Vlachoudis, for the FLUKA Team
   ! last modified: 26-08-2014
@@ -1177,7 +1188,7 @@ program maincr
     fluka_con = fluka_init_max_uid( napx )
 
     if(fluka_con < 0) then
-      write(lerr,"(a,i0,a)") "FLUKA> ERROR Failed to send napx ",napx," to fluka "
+      write(lerr,"(a,i0,a,i0,a)") "FLUKA> ERROR ", fluka_con, ": Failed to send napx ",napx," to fluka "
       write(fluka_log_unit, *) "# failed to send napx to fluka ",napx
       call prror
     end if
@@ -1202,7 +1213,7 @@ program maincr
     fluka_con = fluka_set_synch_part( e0, e0f, nucm0, aa0, zz0, qq0)
 
     if(fluka_con < 0) then
-      write(lerr,"(a)") "FLUKA> ERROR Failed to update the reference particle"
+      write(lerr,"(a,i0,a)") "FLUKA> ERROR ", fluka_con, ": Failed to update the reference particle"
       write(fluka_log_unit,*) "# failed to update ref particle"
       call prror
     end if
@@ -1217,8 +1228,9 @@ program maincr
 
   ! Initialise Modules
   call dump_initialise
-  if(ithick == 0 .and. do_coll) then
-    ! Only if thin and collimation enabled
+
+  if(do_coll) then
+    ! Now only if collimation enabled (for both thick + thin)
     call coll_init
   end if
 
@@ -1247,8 +1259,8 @@ program maincr
   call preTracking
   call startTracking(nthinerr)
 
-  if(ithick == 0 .and. do_coll) then
-    ! Only if thin 6D and collimation enabled
+  if(do_coll) then
+    ! Now only if collimation enabled (for both thick + thin)
     call coll_exitCollimation
   endif
 
@@ -1262,7 +1274,7 @@ program maincr
   numx = nnuml
   id   = 0
 
-#ifndef FLUKA
+#if !defined(FLUKA) && !defined(G4COLLIMATION)
   napxto = 0
 
 #ifdef CR
@@ -1374,23 +1386,24 @@ program maincr
         xv1(ie),yv1(ie),xv2(ie),yv2(ie),sigmv(ie),dpsv(ie),e0,ejv(ia),ejv(ie)
     end if
   end do
+#endif
 
-#else
+#ifdef FLUKA
   ! IFDEF FLUKA
   ! A.Mereghetti and D.Sinuela Pastor, for the FLUKA Team
   ! last modified: 17-07-2013
   ! print stable particles only
   write(lout,"(a)") ""
   write(lout,"(a)") str_divLine
-  if(napxo > 0) then
+  if(napx > 0) then
     write(lout,"(a)") ""
-    write(lout,10350) napxo
+    write(lout,10350) napx
     write(lout,"(a)") ""
     write(lout,10360) 'ID', 'GEN', 'WEIGHT', 'X [m]', 'XP []', 'Y [m]', 'YP[]', 'PC [GeV]', 'DE [eV]', 'DT [s]'
     write(lout,"(a)") ""
-    do ia=1,napxo
+    do ia=1,napx
       if(.not.pstop(ia)) then
-        write(lout,10370) fluka_uid(ia),fluka_gen(ia),fluka_weight(ia), &
+        write(lout,10370) partID(ia),parentID(ia),partWeight(ia), &
           xv1(ia)*c1m3, yv1(ia)*c1m3, xv2(ia)*c1m3, yv2(ia)*c1m3, &
           ejfv(ia)*c1m3,(ejv(ia)-e0)*c1e6,-c1m3*(sigmv(ia)/clight)*(e0/e0f)
       end if

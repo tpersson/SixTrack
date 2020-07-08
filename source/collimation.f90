@@ -170,7 +170,7 @@ subroutine collimation_expand_arrays(npart_new, nblz_new)
   ! Arrays below are only needed if collimation is enabled
 
   ! Allocate Common Variables
-  call coll_expandArrays(npart_new, nblz_new)
+  call coll_expandArrays(npart_new)
 
   call alloc(rcx0,           npart_new,  zero, "rcx0")
   call alloc(rcxp0,          npart_new,  zero, "rcxp0")
@@ -251,6 +251,9 @@ subroutine coll_shuffleLostPart
 
     nabs_type(j:tnapx)      = cshift(nabs_type(j:tnapx),      1)
     nhit_stage(j:tnapx)     = cshift(nhit_stage(j:tnapx),     1)
+
+    cry_proc_prev(j:tnapx)  = cshift(cry_proc_prev(j:tnapx),  1)
+    cry_proc_tmp(j:tnapx)   = cshift(cry_proc_tmp(j:tnapx),   1)
 
     tnapx = tnapx - 1
   end do
@@ -562,7 +565,6 @@ subroutine coll_parseInputLine(inLine, iLine, iErr)
   use coll_dist
   use string_tools
   use coll_common
-  use mod_common, only : napx
 
   character(len=*), intent(in)    :: inLine
   integer,          intent(inout) :: iLine
@@ -1247,12 +1249,10 @@ end subroutine coll_parseInputLine
 ! ================================================================================================ !
 !  Post-input checks for the sanity of parameters
 ! ================================================================================================ !
-subroutine coll_postInput(gammar)
+subroutine coll_postInput()
 
   use crcoall
   use coll_db
-
-  real(kind=fPrec), intent(in) :: gammar
 
   ! Call one extra time as some arrays depend on input values
   call collimation_expand_arrays(npart,nblz)
@@ -1339,8 +1339,9 @@ subroutine coll_openFiles
 
     call f_requestUnit(coll_cryInterFile,coll_cryInterUnit)
     call f_open(unit=coll_cryInterUnit,file=coll_cryInterFile,formatted=.true.,mode="w",status="replace")
-    write(coll_cryInterUnit,"(a1,1x,a6,1x,a8,1x,a20,1x,a4,10(1x,a15))") &
-        "#","partID","turn",chr_rPad("collimator",20),"proc","kickx","kicky","Ein","Eout","xpin","ypin","cryangle","xin","yin"
+    write(coll_cryInterUnit,"(a1,1x,a6,1x,a8,1x,a20,1x,a4,1x,a4,10(1x,a15))") &
+        "#","partID","turn",chr_rPad("collimator",20),"prev","proc","kickx","kicky","Ein","Eout", &
+        "xpin","ypin","cryangle","xin","yin"
   end if
 
   if(do_select) then
@@ -1507,6 +1508,7 @@ subroutine coll_doCollimator(stracki)
   use mod_common
   use coll_common
   use mod_settings
+  use mod_particles
   use mod_common_main
   use mod_common_track
   use coll_db
@@ -1527,7 +1529,7 @@ subroutine coll_doCollimator(stracki)
   logical onesided, linside(napx), isAbs, isHit
   real(kind=fPrec) nsig,c_length,jawLength,jawAperture,jawOffset,jawTilt(2),x_Dump,xpDump,y_Dump,   &
     ypDump,s_Dump,xmax,ymax,calc_aperture,zpj,xmax_pencil,ymax_pencil,xmax_nom,ymax_nom,            &
-    nom_aperture,scale_bx,scale_by,c_tilt(2),c_offset,c_aperture,c_rotation,cry_bendangle,cry_tilt, &
+    nom_aperture,scale_bx,scale_by,c_tilt(2),c_offset,c_aperture,c_rotation,cry_tilt, &
     cRot,sRot
 
   call time_startClock(time_clockCOLL)
@@ -1675,6 +1677,10 @@ subroutine coll_doCollimator(stracki)
   ! Addition matched halo sampled directly on the TCP using pencil beam flag
   if(iturn == 1 .and. ipencil == icoll .and. pencil_distr == 3) then
     call coll_matchedHalo(c_tilt,c_offset,c_aperture,c_length)
+    call part_updatePartEnergy(1,.true.)
+    if(st_debug) then
+      call part_writeState("pencilbeam_distr_type3.dat", .true., .false.)
+    end if
   end if
 
   ! Copy particle data to 1-dim array and go back to meters
@@ -1764,18 +1770,19 @@ subroutine coll_doCollimator(stracki)
       end if
       do j=1,napx
         if(cry_proc(j) > 0) then
-          write(coll_cryInterUnit,"(i8,1x,i8,1x,a20,1x,i4,10(1x,1pe15.8))")        &
-            partID(j), iturn, cdb_cName(icoll)(1:20),cry_proc(j),rcxp(j)-rcxp0(j), &
+          write(coll_cryInterUnit,"(i8,1x,i8,1x,a20,1x,i4,1x,i4,10(1x,1pe15.8))")        &
+            partID(j), iturn, cdb_cName(icoll)(1:20),cry_proc_prev(j),cry_proc(j),rcxp(j)-rcxp0(j), &
             rcyp(j)-rcyp0(j),rcp0(j),rcp(j),rcxp0(j),rcyp0(j),cry_tilt,rcx0(j),rcy0(j)
         end if
       end do
     end if
 #else
-    call coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
+    call coll_doCollimator_Geant4(c_aperture,c_rotation,c_length,onesided)
 #endif
 
   end if
 
+#ifndef G4COLLIMATION
   ! Calculate average impact parameter and save info for all collimators.
   ! Copy information back and do negative drift.
 
@@ -1793,47 +1800,37 @@ subroutine coll_doCollimator(stracki)
       end if
     end do
   end if
+#endif
 
 #ifdef G4COLLIMATION
   do j=1,napx
     if(stracki == zero) then
-      if(iexact .eqv. .false.) then
-        rcx(j) = rcx(j) - (half*c_length)*rcxp(j)
-        rcy(j) = rcy(j) - (half*c_length)*rcyp(j)
-      else
+      if(iexact) then
         zpj    = sqrt(one-rcxp(j)**2-rcyp(j)**2)
         rcx(j) = rcx(j) - (half*c_length)*(rcxp(j)/zpj)
         rcy(j) = rcy(j) - (half*c_length)*(rcyp(j)/zpj)
+      else
+        rcx(j) = rcx(j) - (half*c_length)*rcxp(j)
+        rcy(j) = rcy(j) - (half*c_length)*rcyp(j)
       end if
     end if
 
-    ! Now copy data back to original verctor
+    ! Copy data back to the original vector
     xv1(j) =  rcx(j)*c1e3 + torbx(ie)
     yv1(j) = rcxp(j)*c1e3 + torbxp(ie)
     xv2(j) =  rcy(j)*c1e3 + torby(ie)
     yv2(j) = rcyp(j)*c1e3 + torbyp(ie)
     ejv(j) =  rcp(j)*c1e3
-
-    ! Update mtc and other arrays.
-    ejfv    (j) = sqrt(ejv(j)**2-nucm(j)**2)
-    rvv     (j) = (ejv(j)*e0f)/(e0*ejfv(j))
-    dpsv    (j) = (ejfv(j)*(nucm0/nucm(j))-e0f)/e0f
-    oidpsv  (j) = one/(one+dpsv(j))
-    dpsv1   (j) = (dpsv(j)*c1e3)*oidpsv(j)
-    mtc     (j) = (nqq(j)*nucm0)/(qq0*nucm(j))
-    moidpsv (j) = mtc(j)*oidpsv(j)
-    omoidpsv(j) = c1e3*((one-mtc(j))*oidpsv(j))
-    yv1     (j) = ejf0v(j)/ejfv(j)*yv1(j)
-    yv2     (j) = ejf0v(j)/ejfv(j)*yv2(j)
   end do
+  call part_updatePartEnergy(1,.true.)
 #else
   ! Copy particle data back and do path length stuff; check for absorption
-  ! Add orbit offset back.
+  ! Add orbit offset back
   do j=1,napx
-    ! In order to get rid of numerical errors, just do the treatment for impacting particles
     if(part_hit_pos(j) == ie .and. part_hit_turn(j) == iturn) then
-      ! For zero length element track back half collimator length
+      ! In order to get rid of numerical errors, just do the treatment for impacting particles
       if(stracki == zero) then
+        ! For zero length element track back half collimator length
         if(iexact) then
           zpj    = sqrt(one-rcxp(j)**2-rcyp(j)**2)
           rcx(j) = rcx(j) - (half*c_length)*(rcxp(j)/zpj)
@@ -1844,25 +1841,20 @@ subroutine coll_doCollimator(stracki)
         end if
       end if
 
-      ! Now copy data back to original verctor
+      ! Copy data back to the original vector
       xv1(j) =  rcx(j)*c1e3 + torbx(ie)
       yv1(j) = rcxp(j)*c1e3 + torbxp(ie)
       xv2(j) =  rcy(j)*c1e3 + torby(ie)
       yv2(j) = rcyp(j)*c1e3 + torbyp(ie)
       ejv(j) =  rcp(j)*c1e3
+    end if
+  end do
 
-      !  Energy update, as recommended by Frank
-      ejfv(j)     = sqrt(ejv(j)**2-nucm(j)**2)
-      rvv(j)      = (ejv(j)*e0f)/(e0*ejfv(j))
-      dpsv(j)     = (ejfv(j)*(nucm0/nucm(j))-e0f)/e0f
-      oidpsv(j)   = one/(one+dpsv(j))
-      mtc(j)      = (nqq(j)*nucm0)/(qq0*nucm(j))
-      moidpsv(j)  = mtc(j)/(one+dpsv(j))
-      omoidpsv(j) = c1e3*((one-mtc(j))*oidpsv(j))
-      dpsv1(j)    = (dpsv(j)*c1e3)*oidpsv(j)
-      yv1(j)      = (ejf0v(j)/ejfv(j))*yv1(j)
-      yv2(j)      = (ejf0v(j)/ejfv(j))*yv2(j)
+  call part_updatePartEnergy(1,.true.)
 
+  ! The aperture check in this do loop should be reviewed and possibly removed
+  do j=1,napx
+    if(part_hit_pos(j) == ie .and. part_hit_turn(j) == iturn) then
       ! For absorbed particles set all coordinates to zero. Also include very
       ! large offsets, let's say above 100mm or 100mrad.
       if((part_abs_pos(j) /= 0 .and. part_abs_turn(j) /= 0) .or. &
@@ -1875,16 +1867,10 @@ subroutine coll_doCollimator(stracki)
         sigmv(j)         = zero
         part_abs_pos(j)  = ie
         part_abs_turn(j) = iturn
+        numxv(j)         = numx
         nabs_type(j)     = 0
         nhit_stage(j)    = 0
       end if
-    else
-      ! Otherwise just get back former coordinates
-      xv1(j) =  rcx0(j)*c1e3 + torbx(ie)
-      yv1(j) = rcxp0(j)*c1e3 + torbxp(ie)
-      xv2(j) =  rcy0(j)*c1e3 + torby(ie)
-      yv2(j) = rcyp0(j)*c1e3 + torbyp(ie)
-      ejv(j) =  rcp0(j)*c1e3
     end if
   end do
 
@@ -2177,7 +2163,7 @@ subroutine coll_exitCollimation
       "nimp","nabs","imp_av","imp_sig","length"
     do icoll = 1, cdb_nColl
       if(cdb_cLength(icoll) > zero .and. cdb_cFound(icoll)) then
-        write(coll_summaryUnit,"(i7,1x,a20,2(1x,i8),2(1x,e15.7),1x,f6.2)") icoll, cdb_cName(icoll)(1:20), cn_impact(icoll), &
+        write(coll_summaryUnit,"(i7,1x,a20,2(1x,i8),2(1x,e15.7),1x,f6.3)") icoll, cdb_cName(icoll)(1:20), cn_impact(icoll), &
           cn_absorbed(icoll), caverage(icoll), csigma(icoll), cdb_cLength(icoll)
       end if
     end do
@@ -2187,9 +2173,9 @@ subroutine coll_exitCollimation
 #endif
 
 #ifdef ROOT
-  if(root_flag .and. root_Collimation.eq.1) then
+  if(root_flag .and. root_Collimation == 1) then
     do icoll = 1, cdb_nColl
-      if(cdb_cLength(icoll).gt.zero) then
+      if(cdb_cLength(icoll) > zero) then
         call CollimatorLossRootWrite(icoll, cdb_cName(icoll), len(cdb_cName(icoll)), cn_impact(icoll), cn_absorbed(icoll), &
           caverage(icoll), csigma(icoll), cdb_cLength(icoll))
       end if
@@ -2417,16 +2403,17 @@ subroutine coll_endTurn
   ! For LAST ELEMENT in the ring compact the arrays by moving all
   ! lost particles to the end of the array.
   if(ie == iu) then
-    do j=1, napx
+    do j=1,napx
       if(xv1(j) < 99.0_fPrec .and. xv2(j) < 99.0_fPrec) then
         llostp(j) = .false.
       else
         llostp(j) = .true.
       end if
     end do
-
+#ifndef G4COLLIMATION
     ! Move the lost particles to the end of the arrays
     call shuffleLostParticles
+#endif
   end if
 
   ! Write final distribution
@@ -2508,7 +2495,7 @@ subroutine coll_matchedHalo(c_tilt,c_offset,c_aperture,c_length)
   integer j
   real(kind=fPrec) Nap1pos,Nap2pos,Nap1neg,Nap2neg,tiltOffsPos1,tiltOffsPos2,tiltOffsNeg1,     &
     tiltOffsNeg2,beamsize1,beamsize2,minAmpl,ldrift,c_nex2,c_ney2,betax1,betax2,betay1,betay2, &
-    alphax1,alphax2,alphay1,alphay2
+    alphax1,alphax2,alphay1,alphay2,c_alphax,c_alphay,c_betax,c_betay
 
   ! Assign the drift length over which the optics functions are propagated
   ldrift = -c_length/two
@@ -2573,15 +2560,25 @@ subroutine coll_matchedHalo(c_tilt,c_offset,c_aperture,c_length)
   ! Assign amplitudes in x and y for the halo generation function
   if(cdist_ampX > zero .and. cdist_ampY == zero) then ! Horizontal halo
     c_nex2 = minAmpl
+    c_ney2 = zero 
   else if(cdist_ampX == zero .and. cdist_ampY > zero) then ! Vertical halo
     c_ney2 = minAmpl
+    c_nex2 = zero 
   end if ! Other cases taken care of above - in these cases, program has already stopped
 
   ! Assign optics parameters to use for the generation of the starting halo - at start or end of collimator
   if(minAmpl == Nap1pos .or. minAmpl == Nap1neg) then ! min normalized distance occurs at start of collimator
     ldrift = -c_length/two
+    c_alphax = alphax1
+    c_alphay = alphay1
+    c_betax  = betax1
+    c_betay  = betay1
   else ! Min normalized distance occurs at end of collimator
     ldrift = c_length/two
+    c_alphax = alphax2
+    c_alphay = alphay2
+    c_betax  = betax2
+    c_betay  = betay2
   end if
 
   ! create new pencil beam distribution with spread at start or end of collimator at the minAmpl
@@ -2589,7 +2586,7 @@ subroutine coll_matchedHalo(c_tilt,c_offset,c_aperture,c_length)
   ! but it might be then that only one jaw is hit on the first turn, thus only by half of the particles
   ! the particle generated on the other side will then hit the same jaw several turns later, possibly smearing the impact parameter
   ! This could possibly be improved in the future.
-  call cdist_makeDist_coll(alphax1,alphay1,betax1,betay1,c_nex2,c_ney2)
+  call cdist_makeDist_coll(c_alphax,c_alphay,c_betax,c_betay,c_nex2,c_ney2)
 
   do j=1,napx
     xv1(j) = c1e3*xv1(j) + torbx(ie)
@@ -3041,8 +3038,9 @@ end subroutine coll_writeTracks2
 ! ================================================================================================ !
 
 #ifdef G4COLLIMATION
-subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
+subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length,onesided)
 
+  use, intrinsic :: iso_c_binding
   use crcoall
   use mod_common
   use mod_common_main
@@ -3059,6 +3057,7 @@ subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
   real(kind=fPrec), intent(in) :: c_aperture
   real(kind=fPrec), intent(in) :: c_rotation
   real(kind=fPrec), intent(in) :: c_length
+  logical,          intent(in) :: onesided
 
   integer j
 
@@ -3075,7 +3074,8 @@ subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
 
   !! Add the geant4 geometry
   if(firstrun .and. iturn == 1) then
-    call g4_add_collimator(cdb_cName(icoll), cdb_cMaterial(icoll), c_length, c_aperture, c_rotation, torbx(ie), torby(ie))
+    call g4_add_collimator(cdb_cName(icoll), cdb_cMaterial(icoll), c_length, c_aperture, c_rotation, torbx(ie), torby(ie), &
+         logical(onesided,kind=C_BOOL))
   end if
 
 !! Here we do the real collimation
@@ -3098,6 +3098,12 @@ subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
     flush(lout)
   end if
 
+  call g4_set_maximum_particle_id(MaximumPartID)
+  if(g4_debug .eqv. .true.) then
+    write(lout,"(a,I11)") 'GEANT4>: Setting Maximum ParticleID: ', MaximumPartID
+    flush(lout)
+  end if
+
   do j = 1, napx
 !!!!          if(part_abs_pos(j).eq.0 .and. part_abs_turn(j).eq.0) then
 !! Rotate particles in the frame of the collimator
@@ -3107,6 +3113,7 @@ subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
     if(g4_debug .eqv. .true.) then
       write(lout,"(a,2(1X,I11),10(1X,E24.16))") 'g4 sending particle: ', j, pdgid(j), nucm(j), rcx(j), rcy(j), rcxp(j), &
         rcyp(j), rcp(j), spin_x(j), spin_y(j), spin_z(j), sigmv(j)
+        flush(lout)
     end if
 
     x_tmp = rcx(j)
@@ -3120,7 +3127,7 @@ subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
 
 !! Add all particles
     call g4_add_particle(rcx(j), rcy(j), rcxp(j), rcyp(j), rcp(j), pdgid(j), nzz(j), naa(j), nqq(j), nucm(j), &
-      sigmv(j), spin_x(j), spin_y(j), spin_z(j))
+      sigmv(j), partID(j), parentID(j), partWeight(j), spin_x(j), spin_y(j), spin_z(j))
 
 ! Log input energy + nucleons as per the FLUKA coupling
     nnuc0   = nnuc0 + naa(j)
@@ -3147,13 +3154,19 @@ subroutine coll_doCollimator_Geant4(c_aperture,c_rotation,c_length)
     flush(lout)
   end if
 
+  call g4_get_maximum_particle_id(MaximumPartID)
+  if(g4_debug .eqv. .true.) then
+    write(lout,"(a,I11)") 'GEANT4>: Got Maximum ParticleID: ', MaximumPartID
+    flush(lout)
+  end if
+
   do j = 1, napx
 !! Get the particle back + information
 !! Remember C arrays start at 0, fortran at 1 here.
     call g4_collimate_return(j-1, rcx(j), rcy(j), rcxp(j), rcyp(j), rcp(j), pdgid(j), nucm(j), nzz(j), naa(j), nqq(j), &
-      sigmv(j), part_hit_flag, part_abs_flag, part_impact(j), part_indiv(j), part_linteract(j), spin_x(j), spin_y(j), spin_z(j))
+      sigmv(j), partID(j), parentID(j), partWeight(j), &
+      part_hit_flag, part_abs_flag, part_impact(j), part_indiv(j), part_linteract(j), spin_x(j), spin_y(j), spin_z(j))
 
-    partID(j) = j
     pstop (j) = .false.
 
 !! Rotate back into the accelerator frame

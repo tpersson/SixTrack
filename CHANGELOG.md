@@ -1,12 +1,93 @@
 # SixTrack Changelog
 
+### merged in master
+
+**Bugfixes**
+
+* Fix the root build. PR # 1040 (J. Molson)
+* More robust detection of lxplus at compilation. PR #1045 (J. Molson).
+* Fix pencil beam type 3 - the optics function at the entrance of the collimator were always used for beam sampling, even when those at the exit should have been used (e.g. because the beam is divergent on the cleaning plane). PR #1046 (A. Mereghetti).
+* Do not update the pair mapping for non-primary particles. PR #1050 (A. Mereghetti)
+* Increased number of digits for particle ID in FirstImpacts.dat and in collimator length in coll_summary.dat (to properly display crystal collimators which are usually a few mm long). First impacts on crystal collimators are now correctly flagged and a missing check on the `dowrite_impact` flag when writing Coll_Scatter.dat has been added. PR #1053 (M. D'Andrea)
+* When collimator settings are required to match those read from an old format CollDB, a separate subroutine reconstructs the family settings based on the most frequent setting in each family. PR #1053 (M. D'Andrea)
+* Do not perform the pair mapping when geant4 collimation is enabled.
+* Enable single sided collimators with geant4 collimation.
+* Fix building with geant4 collimation with geant4 releases >= 10.06.
+* Fix a mass miss-match with geant4 when entering non-ground state ions into geant4.
+* Fix a crash with miss-matched format strings when writing the aperture losses file with geant4 enabled (and not FLUKA).
+
+**User Side Changes**
+
+* When specifying `XP` and `YP` in the `FORMAT` statement of the `DIST` block, the units are parsed. Accepted values are [1], [1000], [MRAD], [RAD]. PR # 1054 (A. Mereghetti)
+* Electron lenses have been inserted into FOX - PR #839 and #1056 (A. Mereghetti).
+* Increased flexibility of e-lens module - PR #841 and 1056 (A. Mereghetti):
+  * elens module fully dynamic allocatable;
+  * give possibility to express R_1 and R_2 in sigma;
+  * add any ion species to be defined as possible lens beam;
+  * degenerate WIRE type of e-beam distribution is correctly handled;
+  * other changes, including:
+    * relativistic gamma of lens beam added to calculation of theta_R2;
+    * removed remaining signs of chebyshev polynomials in elens module;
+    * empty lines allowed in file describing the radial profile;
+    * fixed bug in geometric normalisation factor of GAUSSIAN and RADIAL prpofiles;
+  Documentation changed accordingly (user and physics manual).
+* When sending particles to geant4, if the particle mass is within a tolerance of the geant4 value, update the mass to this value and re-scale the particle energy. PR # 1055 (J. Molson).
+* If no collimator are found for a given family, the aperture of that family is set to zero. PR #1053 (M. D'Andrea)
+* If a particle interacts with a crystal collimator after having previously interacted with another or the same crystal collimator, the process ID of the previous interaction is stored in cry_interaction.dat. PR #1058 (M. D'Andrea)
+* Collimator material names are now case insensitive in geant4.
+* In the HION block the PDG ID can now be set as the 5th value. 
+
+**Code Improvements and Changes**
+
+* Removed updating napxo variable in the context of the Fluka-SixTrack coupling. This allows not to screw-up pair mapping in the context of DA studies. PR # 1052 (A. Mereghetti)
+* Removed the un-used fluka_init_brhono function. PR # 1055 (J. Molson).
+* Print error codes from the fluka coupling. PR # 1055 (J. Molson)
+* Update FLUKAIO reference.
+* Add Si as a possible collimator material for G4.
+* Add particle ID and parent ID tracking with geant4.
+* Allow setting particle statistical weights in geant4
+* Always enable the EMD physics process in geant4.
+* Use global id/parent/weight variables in the FLUKA coupling.
+* Start to enable the ability to use collimation with thick lens lattices.
+
+### Version 5.4.3 [19.12.2019] - Release
+
+**Bugfixes**
+
+* Fixed parsing of the `DIFF` block where only the first element name was parsed. The remaining elements were ignored. PR #1031 (F. Schmidt, V.K. Berglyd Olsen, J. Molson)
+* Added a missing else statement in the DA code that was unintentionally removed when the exact drift code was added in 2014. PR #1028 (J. Molson, V.K. Berglyd Olsen)
+* Fixed the conversion of zeta to sigma in `DIST` and the user manual. It was previously assuming the inverse definition of `rvv` used by SixTrackLib. PR #1027 (R. De Maria, V.K. Berglyd Olsen)
+* Fixed a type definition inconsistency introduced by #878 that affected the ROOT interface. PR #1026 (J. Molson)
+* Fixed the `CERNLIB` build system to support 64-bit. PR #1025 (F. Schmidt, J. Molson)
+* Fixed a faulty loop in the FFT routine in post-processing. PR #1025 (J. Molson, F. Schmidt)
+* Fixed a difference in sign in the thin combined function code. PR #1005 (T. Persson)
+
+**User Side Changes**
+
+* Minor changes to the formatting of `fort.18` to ensure correct column width. PR #1029 (J. Molson, F. Schmidt)
+* Added better error reporting for the FLUKA interface. PR #1028 (J. Molson)
+* Particles that pass through a collimator, but don't interact with it, no longer have their coordinates changed. Previously, these particles were shifted to the closed orbit, and had their units changed, for then to be changed back after the collimator. This added unnecessary numerical noise. PR #1023 (V.K. Berglyd Olsen)
+* The scatter module has been rewritten, and the PYTHIA integration updated to work with PYTHIA 8.243. This version allows for sending tracked particles, in terms of their momentum vector, as well as a sampled colliding particle, to the event generator, This means we no longer have to project a PYTHIA event onto the SixTrack particle, but can instead send the tracked particles back and forth between the codes. The Scatter and Pythia modules have been extended to allow for this. In addition, more density profile options have been added: collision with a reference particle at a given probability density, or a model of Beam 2 given by a set of Twiss parameters. The latter can also be set up to mirror Beam 1 using the internal optic parameters calculated by SixTrack. PRs #1017 and #1038 (V.K. Berglyd Olsen)
+
+**Test Suite**
+
+* Added a number of SixDA test to increase coverage of the Differential Algebra version of SixTrack. PRs #1030, #1032 (F. Schmidt, V.K. Berglyd Olsen)
+
+**BOINC Interface**
+
+* Extended the BOINC interface code to produce a new validation file for BOINC jobs. The new file supports a wider range of job types, especially jobs that do not produce a `fort.10` file. PR #878 (V.K. Berglyd Olsen, A. Mereghetti)
+
+**Code Improvements and Changes**
+
+* Cleaned up a number of unused variables throughout the SixTrack source code. PR #1037 (J. Molson)
+
 ### Version 5.4.2 [22.11.2019] - Release
 
 **Bugfixes**
 
 * Fixed a missing use statement in collimation under the `ROOT` compiler flag. Root support should now build again. PR #1015 (V.K. Berglyd Olsen, J. Molson)
 * Removed one sigma cuts on all normal random distributions in the crystal module. These were ported over from the old version of the crystal collimation code, but never worked properly there due to a datatype bug. There should not be any such cuts in the physics in the first place, so they have now been removed. PR #1016 (M. D'Andrea, V.K. Berglyd Olsen)
-* Fixed an inconsistency in the splitting tool for `singletrackfile.dat` where the header was not padded with zeroes when files were split up into particle pair files. The padding was always in the post-processing code, but not in the read90 tool which the splitting tool was derived from. Since the test suite relies on the read90 tool, the split files still passed, but user analysis codes failed. The splitting tool is now consistent with SicTrack post-processing. PR #1013 (V.K. Berglyd Olsen)
+* Fixed an inconsistency in the splitting tool for `singletrackfile.dat` where the header was not padded with zeroes when files were split up into particle pair files. The padding was always in the post-processing code, but not in the read90 tool which the splitting tool was derived from. Since the test suite relies on the read90 tool, the split files still passed, but user analysis codes failed. The splitting tool is now consistent with SixTrack post-processing. PR #1013 (V.K. Berglyd Olsen)
 
 **User Side Changes**
 

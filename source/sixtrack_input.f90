@@ -544,7 +544,7 @@ subroutine sixin_parseInputLineSIMU(inLine, iLine, iErr)
   logical,          intent(inout) :: iErr
 
   character(len=:), allocatable   :: lnSplit(:)
-  integer i, nSplit, numPart, tmpInt
+  integer nSplit, numPart
   logical spErr, tmpLog
 
   call chr_split(inLine, lnSplit, nSplit, spErr)
@@ -1078,8 +1078,6 @@ subroutine sixin_parseInputLineINIT(inLine, iLine, iErr)
   integer nSplit
   logical spErr
 
-  integer i
-
   call chr_split(inLine, lnSplit, nSplit, spErr)
   if(spErr) then
     write(lerr,"(a)") "INIT> ERROR Failed to parse input line."
@@ -1239,8 +1237,8 @@ subroutine sixin_parseInputLineHION(inLine, iLine, iErr)
     write(lout,"(a)") "HIONS> WARNING Only expected one input line."
   end if
 
-  if(nSplit < 3 .or. nSplit > 4) then
-    write(lerr,"(a,i0)") "HIONS> ERROR Line must have 3 values (4 with Q), got ",nSplit
+  if(nSplit < 3 .or. nSplit > 5) then
+    write(lerr,"(a,i0)") "HIONS> ERROR Line must have 3 values (4 with Q, 5 with PDGID), got ",nSplit
     iErr = .true.
     return
   end if
@@ -1249,13 +1247,17 @@ subroutine sixin_parseInputLineHION(inLine, iLine, iErr)
   call chr_cast(lnSplit(2),zz0,  iErr)
   call chr_cast(lnSplit(3),nucm0,iErr)
 
-  if(nSplit == 4) then
+  if(nSplit >= 4) then
     call chr_cast(lnSplit(4),qq0,iErr)
   else
     qq0 = zz0
   end if
 
-  call CalculatePDGid(pdgid0, aa0, zz0)
+  if(nSplit == 5) then
+    call chr_cast(lnSplit(5),pdgid0,iErr)
+  else
+    call CalculatePDGid(pdgid0, aa0, zz0)
+  end if
 
   nucm0 = nucm0*c1e3 ! [GeV/c^2] -> [MeV/c^2]
   sixin_hionSet = .true.
@@ -1558,8 +1560,8 @@ subroutine sixin_parseInputLineDIFF(inLine, iLine, iErr)
       return
     end if
     if(ncor > 0) then
-      OUTER: do j1=1,ncor
-        INNER: do j2=1,il
+      do j1=1,ncor
+        do j2=1,il
           if(ilm0(j1) == bez(j2)) then
             if(el(j2) /= zero .or. kz(j2) > 10) then
               write(lerr,"(a)") "DIFF> ERROR Only single kick elements allowed for map calculation"
@@ -1567,13 +1569,13 @@ subroutine sixin_parseInputLineDIFF(inLine, iLine, iErr)
               return
             end if
             ipar(j1) = j2
-            exit OUTER
+            exit
           end if
-        end do INNER
-      end do OUTER
+        end do
+      end do
     else
       ncor = 0
-      write(lout,"(a)") "DIFF> INFOR No extra parameters for the map specified"
+      write(lout,"(a)") "DIFF> WARNING No extra parameters for the map specified"
     end if
     nvar = nvar2+ncor
   end if
@@ -1600,7 +1602,7 @@ subroutine sixin_parseInputLineCHRO(inLine, iLine, iErr)
   logical,          intent(inout) :: iErr
 
   character(len=:), allocatable   :: lnSplit(:)
-  integer nSplit,i
+  integer nSplit
   logical spErr
 
   call chr_split(inLine, lnSplit, nSplit, spErr)
@@ -3507,7 +3509,6 @@ subroutine sixin_parseInputLineBEAM_EXP(inLine, iLine, iErr)
   use crcoall
   use string_tools
   use mod_settings
-  use parbeam, only : beam_expflag
   use mod_common
   use mod_utils
 
@@ -3519,7 +3520,7 @@ subroutine sixin_parseInputLineBEAM_EXP(inLine, iLine, iErr)
   character(len=mNameLen) elemName
   real(kind=fPrec) sxx,syy,sxy,separx,separy,mm(11)
   integer nSplit, n6D, ibsix, j
-  logical spErr, beamXStr
+  logical spErr
 
   save :: n6D,elemName,ibsix,sxx,syy,sxy,separx,separy,mm
 

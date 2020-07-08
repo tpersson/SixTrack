@@ -396,7 +396,7 @@ subroutine trackBeginTurn(n, nthinerr)
   integer, intent(inout) :: nthinerr
 
   ! Tracking Progress Report
-  if(mod(n,turnReport) == 0 .and. st_quiet < 2) then
+  if(mod(n,turnReport) == 0 .and. st_quiet < 3) then
     write(lout,trackFmt) "TRACKING> "//trim(trackMode)//": Turn ",n," / ",numl,", Particles: ",napx," / ",napxo
     flush(lout)
   end if
@@ -404,7 +404,7 @@ subroutine trackBeginTurn(n, nthinerr)
   meta_nPartTurn = meta_nPartTurn + napx
   numx = n-1
 
-#ifndef FLUKA
+#if !defined(FLUKA) && !defined(G4COLLIMATION)
   if(mod(numx,nwri) == 0) call writebin(nthinerr)
   if(nthinerr /= 0) return
 #endif
@@ -439,7 +439,7 @@ subroutine trackDistance
   use floatPrecision
   use numerical_constants
 
-  integer ia,ib2,ib3,ie,ip
+  integer ia,ie,ip
   real(kind=fPrec) dam1
 
   do ip=1,(napxo+1)/2

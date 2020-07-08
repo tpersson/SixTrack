@@ -11,7 +11,6 @@ subroutine thin4d(nthinerr)
   use numerical_constants
   use mathlib_bouncer
   use mod_particles
-  use dynk, only : dynk_enabled, dynk_apply
   use dump, only : dump_linesFirst, dump_lines, ldumpfront
   use collimation, only: do_coll, part_abs_turn
   use aperture
@@ -41,7 +40,7 @@ subroutine thin4d(nthinerr)
   use mod_common_da
   use bdex, only : bdex_enable
   use aperture
-  use elens
+  use elens, only : elens_ktrack, elens_kick
   use cheby, only : cheby_ktrack, cheby_kick
   use mod_utils
   use wire
@@ -54,11 +53,11 @@ subroutine thin4d(nthinerr)
 
   implicit none
 
-  integer i,irrtr,ix,j,k,n,nmz,nthinerr,xory,nac,nfree,nramp1,nplato,nramp2,kxxa,nfirst
+  integer i,irrtr,ix,j,k,n,nmz,nthinerr,nac,nfree,nramp1,nplato,nramp2,kxxa,nfirst
   real(kind=fPrec) pz,cccc,cikve,crkve,crkveuk,r0,stracki,xlvj,yv1j,yv2j,zlvj,acdipamp,qd,acphase,  &
     acdipamp2,acdipamp1,crabamp,crabfreq,kcrab,RTWO,NNORM,l,cur,dx,dy,tx,ty,embl,chi,xi,yi,dxi,dyi, &
     rrelens,frrelens,xelens,yelens,onedp,fppsig,tan_t,sin_t,cos_t,costh_temp,sinth_temp,pxf,pyf,    &
-    r_temp,z_temp,sigf,q_temp,pttemp,xlv,zlv,temp_angle
+    z_temp,q_temp,pttemp,xlv,zlv,temp_angle
   logical llost
   real(kind=fPrec) crkveb(npart),cikveb(npart),rho2b(npart),tkb(npart),rb(npart),rkb(npart),        &
     xrb(npart),zrb(npart),xbb(npart),zbb(npart),crxb(npart),crzb(npart),cbxb(npart),cbzb(npart)
@@ -461,10 +460,8 @@ subroutine thin4d(nthinerr)
 #include "include/kickvso1.f90"
         end do
         goto 620
-      case (63) ! Elens
-        do j=1,napx
-#include "include/kickelens.f90"
-        end do
+      case (elens_ktrack) ! Elens
+        call elens_kick(i,ix,n)
         goto 620
        case (66) ! Rf-multi
 #include "include/rfmulti.f90"
@@ -529,7 +526,7 @@ subroutine thin4d(nthinerr)
 
     if(nthinerr /= 0) return
     if(ntwin /= 2) call trackDistance
-#ifndef FLUKA
+#if !defined(FLUKA) && !defined(G4COLLIMATON)
     if(mod(n,nwr(4)) == 0) call trackPairReport(n)
 #else
     ! increase napxto, to get an estimation of particles*turns
@@ -556,8 +553,7 @@ subroutine thin6d(nthinerr)
   use tracking
 
   use bdex,       only : bdex_track, bdex_enable, bdex_elementAction
-  use scatter,    only : scatter_thin, scatter_debug
-  use dynk,       only : dynk_enabled, dynk_apply
+  use scatter,    only : scatter_thin
   use dump,       only : dump_linesFirst, dump_lines, ldumpfront
   use mod_ffield, only : ffindex,ffield_genAntiQuad,ffield_enterQuad,ffield_exitQuad,ffield_enabled
   use aperture
@@ -583,7 +579,7 @@ subroutine thin6d(nthinerr)
   use mod_common_track
   use mod_common_da
   use aperture
-  use elens
+  use elens, only : elens_ktrack, elens_kick
   use cheby, only : cheby_ktrack, cheby_kick
   use mod_utils
   use wire
@@ -1231,10 +1227,8 @@ subroutine thin6d(nthinerr)
         end do
         call part_updatePartEnergy(1,.true.)
         goto 640
-      case (63) ! Elens
-        do j=1,napx
-#include "include/kickelens.f90"
-        end do
+      case (elens_ktrack) ! Elens
+        call elens_kick(i,ix,n)
         goto 640
       case (66) ! Rf-multi
 #include "include/rfmulti.f90"
@@ -1314,7 +1308,7 @@ subroutine thin6d(nthinerr)
     if(nthinerr /= 0) return
     if(do_coll .eqv. .false.) then
       if(ntwin /= 2) call trackDistance
-#ifndef FLUKA
+#if !defined(FLUKA) && !defined(G4COLLIMATON)
       if(mod(n,nwr(4)) == 0) call trackPairReport(n)
 #endif
     end if

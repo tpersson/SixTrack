@@ -1449,7 +1449,7 @@ subroutine dynk_parseSET(inLine, iErr)
   logical,          intent(inout) :: iErr
 
   character(len=:), allocatable :: lnSplit(:)
-  integer nSplit, ii
+  integer nSplit
   logical spErr, cErr
 
   call chr_split(inLine,lnSplit,nSplit,spErr)
@@ -1878,9 +1878,6 @@ subroutine dynk_apply(turn)
   character(len=mStrLen) whichFUN(dynk_nSets_unique) ! Which function was used to set a given elem/attr?
   integer whichSET(dynk_nSets_unique)                ! Which SET was used for a given elem/attr?
 
-  ! Temp variable for padding the strings for output to dynksets.dat
-  character(20) outstring_tmp1,outstring_tmp2,outstring_tmp3
-
   if(dynk_debug) then
     write (lout,"(a,i0)") "DYNK> DEBUG In apply at turn ",turn
   end if
@@ -1908,7 +1905,7 @@ subroutine dynk_apply(turn)
       call f_open(unit=dynk_fileUnit,file=dynk_fileName,formatted=.true.,mode="w",status="replace")
 
       if(dynk_dynkSets) then
-        write(dynk_fileUnit,"(a1,1x,a10,2(1x,a20),1x,a4,1x,a20,a16)") "#",&
+        write(dynk_fileUnit,"(a1,1x,a10,2(1x,a20),1x,a4,1x,a20,1x,a16)") "#",&
         "turn", chr_rPad("element",20),chr_rPad("attribute",20),"idx",chr_rPad("funname",20),"value"
       else
         write(dynk_fileUnit,"(a)") "### DYNK file output disabled. Add the flag DYNKSETS to enable it ###"
@@ -1967,7 +1964,7 @@ subroutine dynk_apply(turn)
         whichFUN(jj) = "N/A"
       end if
 
-      write(dynk_fileUnit,"(i12,2(1x,a20),1x,i4,1x,a20,e16.9)") turn, &
+      write(dynk_fileUnit,"(i12,2(1x,a20),1x,i4,1x,a20,1x,e16.9)") turn, &
         chr_rPad(dynk_cSets_unique(jj,1),20),chr_rPad(dynk_cSets_unique(jj,2),20),&
         whichSET(jj),chr_rPad(whichFUN(jj),20),getvaldata
     end do
@@ -2283,7 +2280,8 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
   use mod_particles
   use string_tools
 
-  use elens
+  use elens, only: elens_theta_ref, elens_lAllowUpdate, elens_I, elens_Ek, eLensTheta, elens_kz, &
+                   nelens, ielens
   use cheby
   use parbeam, only : beam_expflag
   implicit none
@@ -2292,10 +2290,10 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
   real(kind=fPrec),   intent(in) :: newValue
 
   ! Temp variables
-  integer el_type, ii, j, orderMult, im,k, range
+  integer el_type, ii, orderMult, im,k, range
 
   ! Original energies before energy update
-  real(kind=fPrec) e0fo, e0o, r0a, r0
+  real(kind=fPrec) r0a, r0
 
   ! For sanity check
   logical ldoubleElement, iErr
@@ -2315,7 +2313,7 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
       ! Modify the reference particle
       call part_updateRefEnergy(newValue)
       ! Modify energy-dependent element parameters
-      do ii=1,melens
+      do ii=1,nelens
         call eLensTheta(ii)
       end do
     end if
@@ -2463,10 +2461,10 @@ subroutine dynk_setvalue(element_name, att_name, newValue)
           goto 100 ! ERROR
         end if
 
-      case(29) ! Electron lens
-        if(att_name == "theta_r2") then ! [mrad]
-          elens_theta_r2(ielens(ii)) = newValue
-          !Energy update is locked down after setting theta_r2 with DYNK
+      case(elens_kz) ! Electron lens
+        if(att_name == "theta_ref") then ! [mrad]
+          elens_theta_ref(ielens(ii)) = newValue
+          !Energy update is locked down after setting theta_ref with DYNK
           elens_lAllowUpdate(ielens(ii)) = .false.
         elseif(att_name == "elens_I") then ! [A]
           elens_I(ielens(ii)) = newValue
@@ -2563,7 +2561,7 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
   use mod_common
   use mod_common_track
   use mod_common_main
-  use elens
+  use elens, only: elens_theta_ref, elens_I, elens_Ek, elens_kz, ielens
   use cheby
   use parbeam, only : beam_expflag
   use string_tools
@@ -2714,9 +2712,9 @@ real(kind=fPrec) function dynk_getvalue(element_name, att_name)
           goto 100 ! ERROR
         end if
 
-      case(29) ! Electron lens
-        if(att_name == "theta_r2") then ! [mrad]
-          dynk_getvalue = elens_theta_r2(ielens(ii))
+      case(elens_kz) ! Electron lens
+        if(att_name == "theta_ref") then ! [mrad]
+          dynk_getvalue = elens_theta_ref(ielens(ii))
         elseif(att_name == "elens_I") then ! [A]
           dynk_getvalue = elens_I(ielens(ii))
         elseif(att_name == "elens_Ek") then ! [keV]
@@ -2924,59 +2922,14 @@ end subroutine dynk_crcheck_readdata
 ! ================================================================================================ !
 subroutine dynk_crcheck_positionFiles
 
-  use parpro
-  use crcoall
   use mod_units
-
-  logical isOpen, fErr
-  integer ierro
-  integer j
-  character(len=mInputLn) aRecord
 
   if(dynk_dynkSets .eqv. .false.) then
     ! No file to reposition
     return
   end if
 
-  inquire(unit=dynk_fileUnit, opened=isOpen)
-  if(isOpen) then
-    write(crlog,"(a)")      "CR_CHECK> ERROR Failed while repositioning '"//dynk_fileName//"'"
-    write(crlog,"(a,i0,a)") "CR_CHECK>       Unit ",dynk_fileUnit," already in use!"
-    flush(crlog)
-    write(lerr,"(a)") "CR_CHECK> ERROR Failed positioning '"//dynk_fileName//"'"
-    call prror
-  end if
-
-  if(dynk_filePosCR /= -1) then
-    call f_open(unit=dynk_fileUnit,file=dynk_fileName,formatted=.true.,mode="rw",status="old",err=fErr)
-    if(fErr) goto 110
-    dynk_filePos = 0     ! Start counting lines at 0, not -1
-    do j=1,dynk_filePosCR
-      read(dynk_fileUnit,"(a)",end=110,err=110,iostat=ierro) aRecord
-      dynk_filePos=dynk_filePos+1
-    end do
-
-    endfile(dynk_fileUnit,iostat=ierro)
-    call f_close(dynk_fileUnit)
-    call f_open(unit=dynk_fileUnit,file=dynk_fileName,formatted=.true.,mode="w+",status="old")
-
-    write(crlog,"(2(a,i0))") "CR_CHECK> Sucessfully repositioned '"//dynk_fileName//"', "// &
-      "dynk_filePos = ",dynk_filePos,", dynk_filePosCR = ",dynk_filePosCR
-    flush(crlog)
-  else
-    write(crlog,"(a,i0)") "CR_CHECK> Did not attempt repositioning of '"//dynk_fileName//"', dynk_filePosCR = ",dynk_filePosCR
-    write(crlog,"(a)")    "CR_CHECK> If anything was written to the file, it will be truncated in dynk_apply on the first turn."
-    flush(crlog)
-  end if
-
-  return
-
-110 continue
-  write(crlog,"(2(a,i0))") "CR_CHECK> ERROR While reading '"//dynk_fileName//"', "//&
-    "dynk_filePos = ",dynk_filePos,", dynk_filePosCR = ",dynk_filePosCR
-  flush(crlog)
-  write(lerr,"(a)") "CR_CHECK> ERROR CRCHECK failure positioning '"//dynk_fileName//"'"
-  call prror
+  call f_positionFile(dynk_fileName, dynk_fileUnit, dynk_filePos, dynk_filePosCR)
 
 end subroutine dynk_crcheck_positionFiles
 

@@ -30,7 +30,6 @@ module mod_fluka
   public :: fluka_set_synch_part
   public :: fluka_init_max_uid
   public :: fluka_is_running
-  public :: fluka_init_brhono
 
   public :: fluka_close
 
@@ -118,10 +117,6 @@ module mod_fluka
                                             FLUKA_EXIT    = 3    ! SINGLE ELEMENT marking the end   of the insertion
   ! ancillary tracking values
   integer(kind=int32), public :: fluka_max_npart                          ! Maximum number of particles (array size)
-  integer(kind=int32), public :: fluka_max_uid                            ! Highest particle ID
-  integer(kind=int32), public, allocatable :: fluka_uid(:)    ! particle ID
-  integer(kind=int32), public, allocatable :: fluka_gen(:)    ! ID of parent particle
-  real(kind=fPrec), public, allocatable    :: fluka_weight(:) ! statistical weight (>0.0)
   integer,          public, allocatable    :: pids(:)         ! Particle ID moved from hisixtrack, to be harmonised
 
   ! Useful values
@@ -162,22 +157,9 @@ contains
     fluka_clight    = clight
 
     call alloc(pids,               npart, 0, "pids")
-    call alloc(fluka_uid,          npart, 0, 'fluka_uid')
-    call alloc(fluka_gen,          npart, 0, 'fluka_gen')
-    call alloc(fluka_weight,       npart, one, 'fluka_weight')
     call alloc(fluka_type,         nele, FLUKA_NONE, 'fluka_type')
     call alloc(fluka_geo_index,    nele, 0, 'fluka_geo_index')
     call alloc(fluka_synch_length, nele, zero, 'fluka_synch_length')
-
-    do j = 1, npart
-      fluka_uid(j) = j
-      fluka_gen(j) = j
-    end do
-
-!    fluka_weight       = one
-!    fluka_type         = FLUKA_NONE
-!    fluka_geo_index    = 0
-!    fluka_synch_length = zero
 
     if(unit208 == -1) then
       call f_requestUnit(fort208,unit208)
@@ -200,17 +182,9 @@ contains
     integer :: npart_new, nele_new, j
 
     call alloc(pids,               npart_new, 0, "pids")
-    call alloc(fluka_uid,          npart_new, 0, 'fluka_uid')
-    call alloc(fluka_gen,          npart_new, 0, 'fluka_gen')
-    call alloc(fluka_weight,       npart_new, one, 'fluka_weight')
     call alloc(fluka_type,         nele_new, FLUKA_NONE, 'fluka_type')
     call alloc(fluka_geo_index,    nele_new, 0, 'fluka_geo_index')
     call alloc(fluka_synch_length, nele_new, zero, 'fluka_synch_length')
-
-    do j = npart+1, npart_new
-      fluka_uid(j) = j
-      fluka_gen(j) = j
-    end do
 
     fluka_max_npart = npart_new
 
@@ -221,9 +195,6 @@ contains
   subroutine fluka_mod_end()
     implicit none
     call dealloc(pids,"pids")
-    call dealloc(fluka_uid,'fluka_uid')
-    call dealloc(fluka_gen,'fluka_gen')
-    call dealloc(fluka_weight,'fluka_weight')
     call dealloc(fluka_type,'fluka_type')
     call dealloc(fluka_geo_index,'fluka_geo_index')
     call dealloc(fluka_synch_length,'fluka_synch_length')
@@ -333,7 +304,7 @@ contains
   !----------------------------------------------------------------------------
   ! send and receive particles from Fluka
   integer function fluka_send_receive(turn, ipt, el, npart, xv1, xv2, yv1, yv2, s, etot, aa, zz, mass, qq, pdg_id, &
-                   spinx, spiny, spinz)
+                   partID, parentID, partWeight, spinx, spiny, spinz)
     implicit none
 
     ! Parameters
@@ -353,22 +324,25 @@ contains
     integer(kind=int16), allocatable :: zz(:)
     integer(kind=int16), allocatable :: qq(:)
     integer(kind=int32), allocatable :: pdg_id(:)
+    integer(kind=int32), allocatable :: partID(:)
+    integer(kind=int32), allocatable :: parentID(:)
+    real(kind=fPrec), allocatable :: partWeight(:)
     real(kind=fPrec), allocatable :: spinx(:)
     real(kind=fPrec), allocatable :: spiny(:)
     real(kind=fPrec), allocatable :: spinz(:)
 
     fluka_send_receive = fluka_send(turn, ipt, el, npart, xv1, xv2, yv1, yv2, s, etot, aa, zz, mass, qq, pdg_id, &
-                         spinx, spiny, spinz)
+                         partID, parentID, partWeight, spinx, spiny, spinz)
     if(fluka_send_receive.lt.0) return
 
     fluka_send_receive = fluka_receive(turn, ipt, el, npart, xv1, xv2, yv1, yv2, s, etot, aa, zz, mass, qq, pdg_id, &
-                         spinx, spiny, spinz)
+                         partID, parentID, partWeight, spinx, spiny, spinz)
   end function fluka_send_receive
 
   !----------------------------------------------------------------------------
   ! just send particles to Fluka
   integer function fluka_send(turn, ipt, el, npart, xv1, xv2, yv1, yv2, s, etot, aa, zz, mass, qq, pdg_id, &
-                   spinx, spiny, spinz)
+                   partID, parentID, partWeight, spinx, spiny, spinz)
     implicit none
 
     ! Interface variables
@@ -388,6 +362,9 @@ contains
     integer(kind=int16), allocatable :: zz(:)
     integer(kind=int16), allocatable :: qq(:)
     integer(kind=int32), allocatable :: pdg_id(:)
+    integer(kind=int32), allocatable :: partID(:)
+    integer(kind=int32), allocatable :: parentID(:)
+    real(kind=fPrec), allocatable :: partWeight(:)
     real(kind=fPrec), allocatable :: spinx(:)
     real(kind=fPrec), allocatable :: spiny(:)
     real(kind=fPrec), allocatable :: spinz(:)
@@ -414,7 +391,7 @@ contains
     if(n.lt.0) then
       write(fluka_log_unit,'(A,i0,A)') "# FlukaIO error: ", n, " - Error sending Insertion Point"
       fluka_cid = -1
-      fluka_send = -1
+      fluka_send = n
       return
     end if
     fluka_last_sent_mess=FLUKA_IPT
@@ -432,9 +409,9 @@ contains
 
     do j=1, npart
 
-      flid  = fluka_uid(j)
-      flgen = fluka_gen(j)
-      flwgt = fluka_weight(j)
+      flid  = partID(j)
+      flgen = parentID(j)
+      flwgt = partWeight(j)
 
       flx   = xv1(j) * c1m1  ! from [mm] to [cm]
       fly   = xv2(j) * c1m1  ! from [mm] to [cm]
@@ -511,10 +488,12 @@ contains
   ! The call from fluka.s90 is:
   ! fluka_receive( nturn, fluka_geo_index(ix), eltot, napx, xv1(:), yv1(:), xv2(:), yv2(:), sigmv, ejv, naa(:), nzz(:), nucm(:))
   ! When the above arrays are made allocatable, the below variables will need updating - see mod_commonmn and mod_hions
-  integer function fluka_receive(turn, ipt, el, napx, xv1, xv2, yv1, yv2, s, etot, aa, zz, mass, qq, pdg_id, spinx, spiny, spinz)
+  integer function fluka_receive(turn, ipt, el, napx, xv1, xv2, yv1, yv2, s, etot, aa, zz, mass, qq, pdg_id, &
+                                 partID, parentID, partWeight, spinx, spiny, spinz)
 
     use parpro
     use mod_pdgid
+    use mod_common_main, only : MaximumPartID
 
     implicit none
 
@@ -535,6 +514,9 @@ contains
     integer(kind=int16), allocatable :: zz(:)
     integer(kind=int16), allocatable :: qq(:)
     integer(kind=int32), allocatable :: pdg_id(:)
+    integer(kind=int32), allocatable :: partID(:)
+    integer(kind=int32), allocatable :: parentID(:)
+    real(kind=fPrec), allocatable :: partWeight(:)
     real(kind=fPrec), allocatable :: spinx(:)
     real(kind=fPrec), allocatable :: spiny(:)
     real(kind=fPrec), allocatable :: spinz(:)
@@ -559,10 +541,10 @@ contains
 
     ! assign default values
     do j = 1, npart
-      fluka_uid(j) = j
-      fluka_gen(j) = j
+      partID(j) = j
+      parentID(j) = j
 
-      fluka_weight(j) = one
+      partWeight(j) = one
 
       xv1 (j) = zero
       xv2 (j) = zero
@@ -593,7 +575,7 @@ contains
       if(n.lt.0) then
         write(fluka_log_unit,'(A,i0,A)') "# FlukaIO error: ", n ," - Server timed out while waiting for message"
         fluka_cid = -1
-        fluka_receive = -1
+        fluka_receive = n
         return
       end if
 
@@ -623,21 +605,17 @@ contains
                flush(fluka_log_unit)
             end if
 
-            fluka_uid(fluka_nrecv)    = flid
-            fluka_gen(fluka_nrecv)    = flgen
-            if (fluka_uid(fluka_nrecv).gt.fluka_max_uid) then
-               fluka_max_uid = fluka_uid(fluka_nrecv)
-! AM ->                ! generate a new uid
-! AM ->                fluka_max_uid = fluka_max_uid + 1
-! AM ->                fluka_uid(fluka_nrecv) = fluka_max_uid
-!
+            partID(fluka_nrecv)    = flid
+            parentID(fluka_nrecv)    = flgen
+            if (partID(fluka_nrecv).gt.MaximumPartID) then
+               MaximumPartID = partID(fluka_nrecv)
+
 ! PH for hisix: write the particle species and their initial conditions to fort.822
-!
-               write(isotope_log_unit,*) fluka_uid(fluka_nrecv),flgen, ipt, flaa, flzz, flet * c1e3
+               write(isotope_log_unit,*) partID(fluka_nrecv),flgen, ipt, flaa, flzz, flet * c1e3
 
             end if
 
-            fluka_weight(fluka_nrecv) = flwgt
+            partWeight(fluka_nrecv)  = flwgt
             xv1(fluka_nrecv)         = flx * c1e1   ! from [cm]  to [mm]
             xv2(fluka_nrecv)         = fly * c1e1   ! from [cm]  to [mm]
             yv1(fluka_nrecv)         = flxp / flzp * c1e3 ! from director cosine to x' [1.0E-03]
@@ -667,7 +645,7 @@ contains
       " ipt = ", ipt, &
       " sent = ", fluka_nsent, &
       " received = ", fluka_nrecv, &
-      " max_uid = ", fluka_max_uid
+      " max_uid = ", MaximumPartID
     flush(fluka_log_unit)
 
   end function fluka_receive
@@ -683,10 +661,6 @@ contains
       write(fluka_log_unit, *) '# fluka_shuffleLostParticles called with napx (lnapx for SixTrack) = ', tnapx, ', j = ', j
       flush(fluka_log_unit)
     end if
-
-    fluka_uid(j:tnapx)    = cshift(fluka_uid(j:tnapx),    1)
-    fluka_gen(j:tnapx)    = cshift(fluka_gen(j:tnapx),    1)
-    fluka_weight(j:tnapx) = cshift(fluka_weight(j:tnapx), 1)
 
   end subroutine fluka_shuffleLostParticles
 
@@ -739,6 +713,9 @@ contains
   !----------------------------------------------------------------------------
   ! set max ID
   integer function fluka_init_max_uid( npart )
+
+    use mod_common_main, only : MaximumPartID
+
     implicit none
 
     ! interface variables
@@ -749,7 +726,7 @@ contains
 
     fluka_init_max_uid = 0
 
-    fluka_max_uid = npart
+    MaximumPartID = npart
 
     n = ntsendnpart(fluka_cid, npart)
     if (n .lt. 0) then
@@ -758,26 +735,6 @@ contains
     end if
 
   end function fluka_init_max_uid
-
-
-  !----------------------------------------------------------------------------
-  ! set Brho nominal
-  integer function fluka_init_brhono( brhono )
-    implicit none
-
-    ! interface variables
-    real(kind=real64) :: brhono
-
-    ! Auxiliary variables
-    integer :: n
-
-    n = ntsendbrhono(fluka_cid, brhono)
-    if (n .lt. 0) then
-      fluka_init_brhono = -1
-      return
-    end if
-
-  end function fluka_init_brhono
 
 
   !----------------------------------------------------------------------------
@@ -1091,13 +1048,13 @@ subroutine kernel_fluka_element( nturn, i, ix )
         nnuc0   = nnuc0 + naa(j)
         ien0    = ien0 + ejv(j)
         ! array of particle ids sent to FLUKA
-        pids(j) = fluka_uid(j)
+        pids(j) = partID(j)
       end do
 
 
       ret = fluka_send_receive( fluka_nturn, fluka_geo_index(fluka_ix), fluka_synch_length( fluka_ix ), &
            napx, xv1, xv2, yv1, yv2, sigmv, ejv, naa, nzz, nucm, nqq, pdgid, &
-           spin_x, spin_y, spin_z )
+           partID, parentID, partWeight, spin_x, spin_y, spin_z )
 
       if (ret.lt.0) then
          write(lerr,'(A,i0,A)')'FLUKA> ERROR ', ret, ' in Fluka communication returned by fluka_send_receive...'
@@ -1146,7 +1103,7 @@ subroutine kernel_fluka_element( nturn, i, ix )
         pid_q = zero
 
         do k=1,napx                                            ! loop over pids received
-          if(pids(j).eq.fluka_uid(k)) then
+          if(pids(j).eq.partID(k)) then
             pid_q = one
           end if
         end do
@@ -1254,13 +1211,13 @@ subroutine kernel_fluka_entrance( nturn, i, ix )
       do j=1,napx
         nnuc0   = nnuc0 + naa(j)
         ien0    = ien0  + ejv(j)
-        pids(j) = fluka_uid(j)   ! array of particle ids sent to FLUKA
+        pids(j) = partID(j)   ! array of particle ids sent to FLUKA
 !    write(*,*),'PH:',pids(j)
       end do
 
       ret = fluka_send( fluka_nturn, fluka_geo_index(fluka_ix), zero, &
            napx, xv1, xv2, yv1, yv2, sigmv, ejv, naa, nzz, nucm, nqq, pdgid, &
-           spin_x, spin_y, spin_z )
+           partID, parentID, partWeight, spin_x, spin_y, spin_z )
 
       if (ret.lt.0) then
          write(lerr,'(A,i0,A)')'FLUKA> ERROR ', ret,' in Fluka communication returned by fluka_send...'
@@ -1314,8 +1271,8 @@ subroutine kernel_fluka_exit
       end if
 
       ret = fluka_receive( fluka_nturn, fluka_geo_index(fluka_ix), fluka_synch_length( fluka_ix ), &
-           napx, xv1, xv2, yv1, yv2, sigmv, ejv, naa, nzz, nucm, nqq, pdgid, &
-           spin_x, spin_y, spin_z )
+           napx, xv1, xv2, yv1, yv2, sigmv, ejv, naa, nzz, nucm, nqq, pdgid, partID, parentID,&
+           partWeight, spin_x, spin_y, spin_z )
 
       if (ret.lt.0) then
          write(lerr,'(A,i0,A)')'FLUKA> ERROR ', ret, ' in Fluka communication returned by fluka_receive...'
@@ -1364,7 +1321,7 @@ subroutine kernel_fluka_exit
       do j=1,npart                                       ! loop over all pids possible
         pid_q = zero
         do k=1,napx                                    ! loop over pids received
-          if(pids(j).eq.fluka_uid(k)) then
+          if(pids(j).eq.partID(k)) then
             pid_q = one
           end if
         end do

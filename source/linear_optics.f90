@@ -1037,6 +1037,7 @@ subroutine writelin(nr,typ,tl,p1,t,ixwl,isBLOC,ielem)
 
   use parpro
   use crcoall
+  use scatter
   use mod_settings
   use mod_common
   use mod_commons
@@ -1054,6 +1055,8 @@ subroutine writelin(nr,typ,tl,p1,t,ixwl,isBLOC,ielem)
   use hdf5_output
   use hdf5_linopt
 #endif
+
+  use elens, only : ielens, elens_setOptics
 
   integer i,iwrite,ixwl,l,ll,nr,tiel
   real(kind=fPrec) al1(2),al2(2),b1(2),b2(2),c(2),cp(2),d(2),dp(2),g1(2),g2(2),p1(2),t(6,4),tl
@@ -1117,6 +1120,14 @@ subroutine writelin(nr,typ,tl,p1,t,ixwl,isBLOC,ielem)
     tdispy(tiel)  = d(2)
     tdispxp(tiel) = dp(1)
     tdispyp(tiel) = dp(2)
+
+    if(scatter_active .and. .not. isBLOC) then
+      call scatter_setLinOpt(ixwl, al1, b1, c, cp, d, dp)
+    end if
+
+    if (ielens(ixwl).gt.0 .and. .not. isBLOC) then
+      call elens_setOptics(ixwl, al1, b1, c, cp, d, dp)
+    end if
 
     if(ncorru == 0) then
       if(st_quiet == 0) then

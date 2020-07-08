@@ -11,7 +11,8 @@ subroutine daliesix
 
   implicit none
 
-  integer i,mf1,mf2,mf3,mf4,mf5,mfile,nd2,ndim,ndpt,nis,no,nv,damap,a1,a1i,a2,a2i,f,fc,fs,rot,xy,h,hc,hs,h4,df,bb1,bb2,haux
+  integer i,mf1,mf2,mf3,mf4,mf5,mfile,nd2,ndim,ndpt,nis,no,nv,damap&
+       &,a1,a1i,a2,a2i,f,fc,fs,rot,xy,h,hc,hs,h4,df,bb1,bb2,haux
   real(kind=fPrec) angle,coe,radn,x2pi
   dimension damap(6),a1(6),a1i(6),a2(6),a2i(6)
   dimension rot(6),xy(6),df(6)
@@ -71,9 +72,10 @@ subroutine daliesix
   call daread(damap,nd2,mfile,zero)
 
   ! Normal Form Analysis
+
   call mapnorm(damap,f,a2,a1,xy,h,nord1)
-  call dainv(a1,nv,a1i,nv)
-  call dainv(a2,nv,a2i,nv)
+  call etinv(a1,a1i)
+  call etinv(a2,a2i)
   call ctor(f,fc,fs)
   call gettura(angle,radn)
   call taked(xy,1,rot)
@@ -322,7 +324,7 @@ subroutine runcav
              /t10,'HORIZ:  AMPLITUDE = ',ES23.16,'   APERTURE = ',f15.3&
              /t10,'VERT:   AMPLITUDE = ',ES23.16,'   APERTURE = ',f15.3&
              /t10,'ELEMENT - LIST NUMBER ',i4,' TYP NUMBER ',i4,' NAME ',a16/)
-10010 format(//t10,30('*')/t10,'**** ONE TURN COMPLETED ****'/ t10,30('*')/)
+10010 format(//t10,30('*')/t10,'****  ONE TURN COMPLETED  ****'/ t10,30('*')/)
 end subroutine runcav
 
 !-----------------------------------------------------------------------
@@ -436,7 +438,7 @@ subroutine runda
   real(kind=fPrec) beamoff1,beamoff2, beamoff3, beamoff4,beamoff5,beamoff6,benkcc,betr0,cbxb,       &
     cbzb,cik,crk,crxb,crzb,dare,dpdav,dpdav2,dummy,fake,ox,oxp,oz,ozp,r0,r000,r0a,r2b,r2bf,rb,rbf,  &
     rho2b,rkb,rkbf,scikveb,scrkveb,sigmdac,startco,tkb,xbb,xrb,xs,zbb,zfeld1,zfeld2,zrb,zs,crabfreq,&
-    crabpht,crabpht2,crabpht3,crabpht4,sin_t,cos_t,tan_t
+    crabpht,crabpht2,crabpht3,crabpht4
   logical fErr
   character(len=300) ch
   common/daele/alda,asda,aldaq,asdaq,smida,xx,yy,dpda,dpda1,sigmda,ej1,ejf1,rv
@@ -669,7 +671,7 @@ subroutine runda
                   endif
                 endif
               enddo
-35               continue
+35            continue
               write(7,*) '1'
               write(7,*) bez(jx)
               if(kz(jx).eq.1.and.abs(ed(jx)).le.pieni) then
@@ -714,19 +716,93 @@ subroutine runda
       if(ix <= 0) then
         write(lerr,"(a)") "RUNDA> ERROR Inverted linear blocks not allowed."
         call prror
-      endif
-#include "include/dalin1.f90"
-#include "include/dalin2.f90"
-#include "include/dalin3.f90"
-#include "include/dalin4.f90"
-#include "include/dalin5.f90"
+      end if
+      jmel=mel(ix)
+      if(idp == 0 .or. ition == 0) then
+        if(ithick == 1) then
+          do jb=1,jmel
+            jx=mtyp(ix,jb)
+            do ip=1,6
+              do ien=1,nord+1
+                zfeld1(ien)=ald6(jx,1,ip,ien)
+              end do
+              if(nvar2 == 4) then
+                call darea6(alda(1,ip),zfeld1,4)
+              else if(nvar2 == 5) then
+                call darea6(alda(1,ip),zfeld1,5)
+              end if
+              do ien=1,nord+1
+                zfeld1(ien)=ald6(jx,2,ip,ien)
+              end do
+              if(nvar2 == 4) then
+                call darea6(alda(2,ip),zfeld1,4)
+              else if(nvar2 == 5) then
+                call darea6(alda(2,ip),zfeld1,5)
+              end if
+            end do
+!FOX  PUX=X(1) ;
+!FOX  PUZ=Y(1) ;
+!FOX  X(1)=ALDA(1,1)*PUX+ALDA(1,2)*PUZ+ALDA(1,5)*IDZ(1) ;
+!FOX  Y(1)=ALDA(1,3)*PUX+ALDA(1,4)*PUZ+ALDA(1,6)*IDZ(1) ;
+!FOX  PUX=X(2) ;
+!FOX  PUZ=Y(2) ;
+!FOX  X(2)=ALDA(2,1)*PUX+ALDA(2,2)*PUZ+ALDA(2,5)*IDZ(2) ;
+!FOX  Y(2)=ALDA(2,3)*PUX+ALDA(2,4)*PUZ+ALDA(2,6)*IDZ(2) ;
+          end do
+        else
+!FOX  X(1)=X(1)+BL1(IX,1,2)*Y(1) ;
+!FOX  X(2)=X(2)+BL1(IX,2,2)*Y(2) ;
+        end if
+      else
+        do jb=1,jmel
+          jx=mtyp(ix,jb)
+          if(ithick == 1) then
+            do ip=1,6
+              do ien=1,nord+1
+                zfeld1(ien)=ald6(jx,1,ip,ien)
+                zfeld2(ien)=asd6(jx,1,ip,ien)
+              end do
+              if(nvar2 == 5) then
+                call darea6(alda(1,ip),zfeld1,5)
+                call darea6(asda(1,ip),zfeld2,5)
+              else if(nvar2 == 6) then
+                call darea6(alda(1,ip),zfeld1,6)
+                call darea6(asda(1,ip),zfeld2,6)
+              end if
+              do ien=1,nord+1
+                zfeld1(ien)=ald6(jx,2,ip,ien)
+                zfeld2(ien)=asd6(jx,2,ip,ien)
+              end do
+              if(nvar2 == 5) then
+                call darea6(alda(2,ip),zfeld1,5)
+                call darea6(asda(2,ip),zfeld2,5)
+              else if(nvar2 == 6) then
+                call darea6(alda(2,ip),zfeld1,6)
+                call darea6(asda(2,ip),zfeld2,6)
+              end if
+            end do
+!FOX  PUX=X(1) ;
+!FOX  PUZ=Y(1) ;
+!FOX  SIGMDA=SIGMDA+ASDA(1,1)+ASDA(1,2)*PUX+
+!FOX  ASDA(1,3)*PUZ+ASDA(1,4)*PUX*PUZ+ASDA(1,5)*PUX*PUX+
+!FOX  ASDA(1,6)*PUZ*PUZ ;
+!FOX  X(1)=ALDA(1,1)*PUX+ALDA(1,2)*PUZ+ALDA(1,5)*IDZ(1) ;
+!FOX  Y(1)=ALDA(1,3)*PUX+ALDA(1,4)*PUZ+ALDA(1,6)*IDZ(1) ;
+!FOX  PUX=X(2) ;
+!FOX  PUZ=Y(2) ;
+!FOX  SIGMDA=SIGMDA+ASDA(2,1)+ASDA(2,2)*PUX+
+!FOX  ASDA(2,3)*PUZ+ASDA(2,4)*PUX*PUZ+ASDA(2,5)*PUX*PUX+
+!FOX  ASDA(2,6)*PUZ*PUZ ;
+!FOX  X(2)=ALDA(2,1)*PUX+ALDA(2,2)*PUZ+ALDA(2,5)*IDZ(2) ;
+!FOX  Y(2)=ALDA(2,3)*PUX+ALDA(2,4)*PUZ+ALDA(2,6)*IDZ(2) ;
           else
-#include "include/dalin6.f90"
+!FOX  X(1)=X(1)+EL(JX)*Y(1) ;
+!FOX  X(2)=X(2)+EL(JX)*Y(2) ;
 !FOX  SIGMDA=SIGMDA+
-#include "include/sqrtfox.f90"
-          endif
-        enddo
-      endif
+!FOX  EL(JX)*(C1E3-RV*(C1E3+(Y(1)*Y(1)+Y(2)*Y(2))*C5M4)) ;
+          end if
+        end do
+      end if
       goto 480
 70     ix=ix-nblo
       if(abs(dare(x(1))).gt.aint(aper(1)).or.abs(dare(x(2))).gt.aint(aper(2))) then
@@ -1656,7 +1732,7 @@ subroutine runda
   &'HORIZ:  AMPLITUDE = ',ES23.16,'   APERTURE = ',f15.3/ t10,       &
   &'VERT:   AMPLITUDE = ',ES23.16,'   APERTURE = ',f15.3/ t10,       &
   &'ELEMENT - LIST NUMBER ',i4,' TYP NUMBER ',i4,' NAME ',a16/)
-10010 format(//t10,30('*')/t10,'**** ONE TURN COMPLETED ****'/ t10,30('*')/)
+10010 format(//t10,30('*')/t10,'****  ONE TURN COMPLETED  ****'/ t10,30('*')/)
 end subroutine runda
 
 !-----------------------------------------------------------------------

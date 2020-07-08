@@ -13,7 +13,6 @@ subroutine thck4d(nthinerr)
   use numerical_constants
   use mod_particles
   use bdex, only : bdex_enable
-  use dynk, only : dynk_enabled, dynk_apply
   use dump, only : dump_linesFirst, dump_lines, ldumpfront
   use collimation, only: do_coll, part_abs_turn
   use aperture
@@ -37,7 +36,7 @@ subroutine thck4d(nthinerr)
   use mod_commons
   use mod_common_track
   use mod_common_da
-  use elens
+  use elens, only : elens_ktrack, elens_kick
   use cheby, only : cheby_ktrack, cheby_kick
   use mod_utils
   use wire
@@ -50,12 +49,12 @@ subroutine thck4d(nthinerr)
 
   implicit none
 
-  integer i,idz1,idz2,irrtr,ix,j,jb,jmel,jx,k,n,nmz,nthinerr,xory,nac,nfree,nramp1,nplato,nramp2,   &
+  integer i,idz1,idz2,irrtr,ix,j,jb,jmel,jx,k,n,nmz,nthinerr,nac,nfree,nramp1,nplato,nramp2,   &
     kxxa,nfirst
   real(kind=fPrec) cccc,cikve,crkve,crkveuk,puxve,puxve1,puxve2,puzve1,puzve2,puzve,r0,xlvj,yv1j,   &
     yv2j,zlvj,acdipamp,qd,acphase, acdipamp2,acdipamp1,crabamp,crabfreq,kcrab,RTWO,NNORM,l,cur,dx,  &
     dy,tx,ty,embl,chi,xi,yi,dxi,dyi,rrelens,frrelens,xelens,yelens,onedp,fppsig,costh_temp,         &
-    sinth_temp,pxf,pyf,r_temp,z_temp,sigf,q_temp,xlv,zlv
+    sinth_temp,pxf,pyf,q_temp,xlv,zlv
 
   logical llost
   real(kind=fPrec) crkveb(npart),cikveb(npart),rho2b(npart),tkb(npart),rb(npart),rkb(npart),        &
@@ -477,10 +476,8 @@ subroutine thck4d(nthinerr)
 #include "include/kickvso1.f90"
         end do
         goto 470
-      case (63) ! Elens
-        do j=1,napx
-#include "include/kickelens.f90"
-        end do
+      case (elens_ktrack) ! Elens
+        call elens_kick(i,ix,n)
         goto 470
       case (cheby_ktrack) ! Chebyshev lens
         call cheby_kick(i,ix,n)
@@ -546,7 +543,7 @@ subroutine thck4d(nthinerr)
 
     if(nthinerr /= 0) return
     if(ntwin /= 2) call trackDistance
-#ifndef FLUKA
+#if !defined(FLUKA) && !defined(G4COLLIMATON)
     if(mod(n,nwr(4)) == 0) call trackPairReport(n)
 #else
     ! increase napxto, to get an estimation of particles*turns
@@ -573,7 +570,6 @@ subroutine thck6d(nthinerr)
   use numerical_constants
   use mod_particles
   use bdex, only : bdex_enable
-  use dynk, only : dynk_enabled, dynk_apply
   use dump, only : dump_linesFirst, dump_lines, ldumpfront
   use collimation, only: do_coll, part_abs_turn
   use aperture
@@ -598,7 +594,7 @@ subroutine thck6d(nthinerr)
   use mod_common_track
   use mod_common_da
   use aperture
-  use elens
+  use elens, only : elens_ktrack, elens_kick
   use cheby, only : cheby_ktrack, cheby_kick
   use mod_utils
   use wire
@@ -611,7 +607,7 @@ subroutine thck6d(nthinerr)
 
   implicit none
 
-  integer i,idz1,idz2,irrtr,ix,j,jb,jmel,jx,k,n,nmz,nthinerr,xory,nac,nfree,nramp1,nplato,nramp2,   &
+  integer i,idz1,idz2,irrtr,ix,j,jb,jmel,jx,k,n,nmz,nthinerr,nac,nfree,nramp1,nplato,nramp2,   &
     kxxa,nfirst
   real(kind=fPrec) cccc,cikve,crkve,crkveuk,puxve1,puxve2,puzve1,puzve2,r0,xlvj,yv1j,yv2j,zlvj,     &
     acdipamp,qd,acphase,acdipamp2,acdipamp1,crabamp,crabfreq,kcrab,RTWO,NNORM,l,cur,dx,dy,tx,ty,    &
@@ -1076,10 +1072,8 @@ subroutine thck6d(nthinerr)
 #include "include/kickvso2.f90"
         end do
         goto 490
-      case (63) ! Elens
-        do j=1,napx
-#include "include/kickelens.f90"
-        end do
+      case (elens_ktrack) ! Elens
+        call elens_kick(i,ix,n)
         goto 490
       case (cheby_ktrack) ! Chebyshev lens
         call cheby_kick(i,ix,n)
@@ -1140,7 +1134,7 @@ subroutine thck6d(nthinerr)
 
     if(nthinerr /= 0) return
     if(ntwin /= 2) call trackDistance
-#ifndef FLUKA
+#if !defined(FLUKA) && !defined(G4COLLIMATON)
     if(mod(n,nwr(4)) == 0) call trackPairReport(n)
 #else
     ! increase napxto, to get an estimation of particles*turns

@@ -127,7 +127,14 @@ list(APPEND SIXTRACK_TESTS
   elensidealthin4d
   elensidealthin6d
   elensidealthin6d_DYNK
+  elensidealthin6d_FOX
+  elensidealthin6d_FOX_gaussian
+  elensidealthin6d_FOX_radial
+  elensidealthin6d_FOX_uniform
+  elensidealthin6d_FOX_wire
   elensidealthin6d_ions
+  elensidealthin6d_ions_spec
+  elensidealthin6d_norm_settings
   elensidealthin6d_ramp_DYNK
   eric
   exact
@@ -203,6 +210,7 @@ if(NOT CR)
     collimation_dist_4
     collimation_dist_5
     collimation_dist_6
+    collimation_dist_pencil_type3
     collimation_dist_radial
     collimation_jaw_fit
     collimation_jaw_fit_b4
@@ -226,6 +234,7 @@ endif()
 if(PYTHIA)
   list(APPEND SIXTRACK_TESTS
     scatter_pythia
+    scatter_pythia_realbeam
   )
 endif()
 
@@ -240,6 +249,12 @@ endif()
 if(SIXDA)
   list(APPEND SIXTRACK_DA_TESTS
     frs_da
+    ps_5d_da
+    ps_6d_da
+    psb_5d_da
+    sps_da
+    sps_diff10_da
+    sps_diff2_da
     thick4_da
   )
 endif()
@@ -274,6 +289,7 @@ set(TESTS_NOFORT10
   collimation_dist_4
   collimation_dist_5
   collimation_dist_6
+  collimation_dist_pencil_type3
   collimation_dist_radial
   collimation_jaw_fit
   collimation_jaw_fit_b4
@@ -302,6 +318,7 @@ set(TESTS_NOFORT10
   dynk_polynomial
   dynk_random
   elensidealthck6d
+  elensidealthin6d_norm_settings
   exact
   fringe_field
   generalized-rf-multipoles
@@ -328,6 +345,7 @@ set(TESTS_NOFORT10
   scatter_bbelastic
   scatter_collimation
   scatter_pythia
+  scatter_pythia_realbeam
   thick6d_below_transit
   thick6dblocks
   thick6ddynk
@@ -354,6 +372,7 @@ set(TESTS_NO_STF
   collimation_dist_4
   collimation_dist_5
   collimation_dist_6
+  collimation_dist_pencil_type3
   collimation_dist_radial
   collimation_jaw_fit
   collimation_jaw_fit_b4
@@ -383,6 +402,8 @@ set(TESTS_NO_STF
   dynk_polynomial
   dynk_random
   elensidealthin6d_ions
+  elensidealthin6d_ions_spec
+  elensidealthin6d_norm_settings
   fma
   fma_binary
   fma_naff
@@ -398,6 +419,7 @@ set(TESTS_NO_STF
   scatter_bbelastic
   scatter_collimation
   scatter_pythia
+  scatter_pythia_realbeam
   thick6d_below_transit
   thick6ddynk
   thin4d_ions
@@ -631,6 +653,7 @@ set(FAST_TESTS
   collimation_dist_4
   collimation_dist_5
   collimation_dist_6
+  collimation_dist_pencil_type3
   collimation_dist_radial
   collimation_jaw_fit
   collimation_jaw_fit_b4
@@ -667,8 +690,14 @@ set(FAST_TESTS
   elensidealthin4d
   elensidealthin6d
   elensidealthin6d_DYNK
-  elensidealthin6d_DYNK_ZIPF
+  elensidealthin6d_FOX
+  elensidealthin6d_FOX_gaussian
+  elensidealthin6d_FOX_radial
+  elensidealthin6d_FOX_uniform
+  elensidealthin6d_FOX_wire
   elensidealthin6d_ions
+  elensidealthin6d_ions_spec
+  elensidealthin6d_norm_settings
   exact
   fcc
   frs_da
@@ -684,14 +713,17 @@ set(FAST_TESTS
   notilt
   orbit6d-element-combinedFunction
   orbit6d-element-quadrupole
+  orbit6d-element-rotations
   orbit6d-element-solenoid
   orbit6d-element-trombone
   orbit6d-element-trombone-kick
-  orbit6d-element-rotations
   orbit6d-ions
   orbit6d-ions-long
   part_state_binary_ions
   part_state_text_ions
+  ps_5d_da
+  ps_6d_da
+  psb_5d_da
   random_numbers
   rfMultipoles_2nd3rd4th_skew
   rfMultipoles_2ndOrder
@@ -702,6 +734,10 @@ set(FAST_TESTS
   scatter_bbelastic
   scatter_collimation
   scatter_pythia
+  scatter_pythia_realbeam
+  sps_da
+  sps_diff10_da
+  sps_diff2_da
   thick4
   thick4_da
   thick6d_below_transit
